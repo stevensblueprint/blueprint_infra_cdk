@@ -1,16 +1,25 @@
-import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { Stack, StackProps } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import { BillingReportConstruct } from "../constructs/billing-report-construct";
 
-export class BlueprintInfraStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+export interface BlueprintInfraStackProps extends StackProps {
+  /**
+   * SES‐verified sender address, e.g. "billing@example.com"
+   */
+  readonly senderEmail: string;
+
+  /**
+   * Comma‐separated list of all recipients, e.g. "acct@example.com,finance@example.com"
+   */
+  readonly recipientEmails: string;
+}
+
+export class BlueprintInfraStack extends Stack {
+  constructor(scope: Construct, id: string, props: BlueprintInfraStackProps) {
     super(scope, id, props);
-
-    // The code that defines your stack goes here
-
-    // example resource
-    // const queue = new sqs.Queue(this, 'BlueprintInfraQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    new BillingReportConstruct(this, "MonthlyBillingReport", {
+      senderEmail: props.senderEmail,
+      recipientEmails: props.recipientEmails,
+    });
   }
 }
