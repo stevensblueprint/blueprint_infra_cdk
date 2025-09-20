@@ -1,8 +1,8 @@
-import { Stack, StackProps } from "aws-cdk-lib";
+import * as cdk from "aws-cdk-lib";
+import * as billingConstructs from "../constructs/billing-report-construct";
 import { Construct } from "constructs";
-import { BillingReportConstruct } from "../constructs/billing-report-construct";
 
-export interface BlueprintInfraStackProps extends StackProps {
+export interface BlueprintInfraStackProps extends cdk.StackProps {
   /**
    * SES‐verified sender address, e.g. "billing@example.com"
    */
@@ -14,10 +14,10 @@ export interface BlueprintInfraStackProps extends StackProps {
   readonly recipientEmails: string;
 }
 
-export class BlueprintInfraStack extends Stack {
+export class BlueprintInfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: BlueprintInfraStackProps) {
     super(scope, id, props);
-    new BillingReportConstruct(this, "MonthlyBillingReport", {
+    new billingConstructs.BillingReportConstruct(this, "MonthlyBillingReport", {
       senderEmail: props.senderEmail,
       recipientEmails: props.recipientEmails,
     });
