@@ -14,4 +14,10 @@ new BlueprintInfraStack(app, "blueprint-infra-stack", {
   domainName: config.DOMAIN_NAME,
   subdomainName: config.SUBDOMAIN_NAME,
   certificateArn: config.CERTIFICATE_ARN,
+  sourceAction: {
+    githubOwner: config.GITHUB_OWNER,
+    githubRepositoryName: config.GITHUB_REPOSITORY_NAME,
+    githubBranchName: config.GITHUB_BRANCH_NAME,
+  },
+  description: "Blueprint Infrastructure Stack",
 });
