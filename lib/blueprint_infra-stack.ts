@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as website from "@sitblueprint/website-construct";
-import GithubDeployRole from "../constructs/github-deploy-role";
+import GithubDeployRole from "./constructs/github-deploy-role";
 import { Construct } from "constructs";
 
 export interface SourceActionConfig {
@@ -70,7 +70,7 @@ export class BlueprintInfraStack extends cdk.Stack {
           subdomainName: props.subdomainName,
           certificateArn: props.certificateArn,
         },
-      }
+      },
     );
 
     new GithubDeployRole(this, "GithubDeployRole", {
