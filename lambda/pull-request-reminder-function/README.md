@@ -73,6 +73,11 @@ Verify the update:
 ```bash
 aws secretsmanager get-secret-value --secret-id buddy-bot/team-config
 ```
+To beautify with jq
+```bash
+aws secretsmanager get-secret-value --secret-id buddy-bot/team-config \
+| jq -r '.SecretString | fromjson'
+```
 
 ## Environment Variables
 The Lambda function relies on the following environment variable to locate the configuration:
