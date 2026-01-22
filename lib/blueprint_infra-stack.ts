@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import * as website from "@sitblueprint/website-construct";
 import GithubDeployRole from "./constructs/github-deploy-role";
+import PullRequestReminderConstruct from "./constructs/pull-request-reminder-construct";
 import { Construct } from "constructs";
 
 export interface SourceActionConfig {
@@ -80,6 +81,8 @@ export class BlueprintInfraStack extends cdk.Stack {
       repoName: props.sourceAction.githubRepositoryName,
       branchRef: `refs/heads/${props.sourceAction.githubBranchName}`,
     });
+
+    new PullRequestReminderConstruct(this, "PullRequestReminderFunction");
 
     new cdk.CfnOutput(this, "BucketName", {
       value: blueprintChatWebsite.bucket.bucketName,
