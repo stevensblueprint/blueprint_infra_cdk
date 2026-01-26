@@ -6,6 +6,7 @@ from model import TeamConfig
 from typing import Dict, Any
 import hmac
 import hashlib
+import re
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -53,10 +54,20 @@ def verify_signature(event: Dict[str, Any], github_secrets: str) -> bool:
 
 
 def format_discord_mention(value: str) -> str:
-    if value.startswith("<@") and value.endswith(">"):
+    """
+    Accepts:
+      - raw numeric user id: "123..."
+      - already formatted mention: "<@123...>" / "<@!123...>"
+      - (fallback) a username: "damnielll" -> "@damnielll" (won't ping from webhooks)
+    """
+    if not value:
         return value
-    if value.isdigit():
-        return f"<@{value}>"
-    if value.startswith("@"):
-        return value
-    return f"@{value}"
+
+    v = value.strip()
+    if re.fullmatch(r"<@!?\d+>", v):
+        return v
+    if v.isdigit():
+        return f"<@{v}>"
+    if not v.startswith("@"):
+        v = "@" + v
+    return v

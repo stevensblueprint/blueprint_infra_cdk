@@ -2,8 +2,7 @@ import json
 import urllib.request
 import random
 import logging
-from typing import Dict, Any, List
-from model import TeamConfig
+from typing import Dict, Any
 from utils import verify_signature, format_discord_mention, get_team_configs
 
 logger = logging.getLogger()
@@ -76,6 +75,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             publisher_discord=publisher_mention,
             repo=repo["full_name"],
         ),
+        "allowed_mentions": {"parse": ["users"]},
         "embeds": [
             {
                 "title": pr["title"],
