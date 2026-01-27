@@ -4,21 +4,26 @@ import GithubDeployRole from "./constructs/github-deploy-role";
 import PullRequestReminderConstruct from "./constructs/pull-request-reminder-construct";
 import { Construct } from "constructs";
 
-export interface SourceActionConfig {
+export interface WebsiteConfiguration {
   /**
-   * GitHub owner or organization name
+   * Logical name for the website (used in Construct IDs and bucket names)
    */
-  readonly githubOwner: string;
+  readonly name: string;
 
   /**
-   * GitHub repository name
+   * Subdomain name, e.g. "app" or "vault"
    */
-  readonly githubRepositoryName: string;
+  readonly subdomain: string;
 
   /**
-   * GitHub branch name
+   * GitHub repository name for deployment (optional)
    */
-  readonly githubBranchName: string;
+  readonly githubRepositoryName?: string;
+
+  /**
+   * GitHub branch name for deployment (optional, defaults to main)
+   */
+  readonly githubBranchName?: string;
 }
 
 export interface BlueprintInfraStackProps extends cdk.StackProps {
@@ -38,57 +43,57 @@ export interface BlueprintInfraStackProps extends cdk.StackProps {
   readonly domainName: string;
 
   /**
-   * Subdomain name for the website, e.g. "app"
-   */
-  readonly subdomainName: string;
-
-  /**
    * ARN of an existing ACM certificate in us-east-1 for the domain/subdomain
    */
   readonly certificateArn: string;
 
   /**
-   * Configuration for the source action of the pipeline
+   * GitHub owner or organization name
    */
-  readonly sourceAction: SourceActionConfig;
+  readonly githubOwner: string;
+
+  /**
+   * List of websites to deploy
+   */
+  readonly websites: WebsiteConfiguration[];
 }
 
 export class BlueprintInfraStack extends cdk.Stack {
-  private readonly blueprintChat: string = "blueprint-chat";
   constructor(scope: Construct, id: string, props: BlueprintInfraStackProps) {
     super(scope, id, props);
 
-    const blueprintChatWebsite = new website.Website(
-      this,
-      "Blueprint-Chat-Website",
-      {
-        bucketName: `${this.blueprintChat}-website`,
+    props.websites.forEach((site) => {
+      const siteId = site.name.replace(/\s+/g, "-");
+      const websiteConstruct = new website.Website(this, `${siteId}-Website`, {
+        bucketName: `${site.name.toLowerCase()}-website`,
         indexFile: "index.html",
         errorFile: "index.html",
         notFoundResponsePagePath: "/404.html",
         domainConfig: {
           domainName: props.domainName,
-          subdomainName: props.subdomainName,
+          subdomainName: site.subdomain,
           certificateArn: props.certificateArn,
         },
-      },
-    );
+      });
 
-    new GithubDeployRole(this, "GithubDeployRole", {
-      bucketName: blueprintChatWebsite.bucket.bucketName,
-      distributionId: blueprintChatWebsite.distribution.distributionId,
-      repoOwner: props.sourceAction.githubOwner,
-      repoName: props.sourceAction.githubRepositoryName,
-      branchRef: `refs/heads/${props.sourceAction.githubBranchName}`,
+      if (site.githubRepositoryName) {
+        new GithubDeployRole(this, `${siteId}-GithubDeployRole`, {
+          bucketName: websiteConstruct.bucket.bucketName,
+          distributionId: websiteConstruct.distribution.distributionId,
+          repoOwner: props.githubOwner,
+          repoName: site.githubRepositoryName,
+          branchRef: `refs/heads/${site.githubBranchName ?? "main"}`,
+        });
+      }
+
+      new cdk.CfnOutput(this, `${siteId}-BucketName`, {
+        value: websiteConstruct.bucket.bucketName,
+      });
+      new cdk.CfnOutput(this, `${siteId}-CloudFrontDistributionId`, {
+        value: websiteConstruct.distribution.distributionId,
+      });
     });
 
     new PullRequestReminderConstruct(this, "PullRequestReminderFunction");
-
-    new cdk.CfnOutput(this, "BucketName", {
-      value: blueprintChatWebsite.bucket.bucketName,
-    });
-    new cdk.CfnOutput(this, "CloudFrontDistributionId", {
-      value: blueprintChatWebsite.distribution.distributionId,
-    });
   }
 }

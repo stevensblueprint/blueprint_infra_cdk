@@ -6,18 +6,14 @@ import { config } from "./config";
 const app = new cdk.App();
 new BlueprintInfraStack(app, "blueprint-infra-stack", {
   env: {
-    account: config.ACCOUNT_ID,
-    region: config.AWS_REGION,
+    account: config.account,
+    region: config.region,
   },
-  senderEmail: config.SENDER_EMAIL,
-  recipientEmails: config.RECIPIENT_EMAILS,
-  domainName: config.DOMAIN_NAME,
-  subdomainName: config.SUBDOMAIN_NAME,
-  certificateArn: config.CERTIFICATE_ARN,
-  sourceAction: {
-    githubOwner: config.GITHUB_OWNER,
-    githubRepositoryName: config.GITHUB_REPOSITORY_NAME,
-    githubBranchName: config.GITHUB_BRANCH_NAME,
-  },
+  senderEmail: config.senderEmail,
+  recipientEmails: config.recipientEmails,
+  domainName: config.domainName,
+  certificateArn: config.certificateArn,
+  githubOwner: config.githubOwner,
+  websites: config.websites,
   description: "Blueprint Infrastructure Stack",
 });

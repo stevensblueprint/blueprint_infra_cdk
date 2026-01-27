@@ -36,30 +36,63 @@ const csvEmails = z
     }
   });
 
-const EnvSchema = z.object({
-  ACCOUNT_ID: z
-    .string()
-    .regex(accountIdRegex, "ACCOUNT_ID must be a 12-digit AWS account ID"),
-  AWS_REGION: z.string().default("us-east-1"),
-  SENDER_EMAIL: z.email("SENDER_EMAIL must be a valid email"),
-  RECIPIENT_EMAILS: csvEmails,
-  DOMAIN_NAME: z
-    .string()
-    .regex(domainRegex, "DOMAIN_NAME must be a valid domain, e.g. example.com"),
-  SUBDOMAIN_NAME: z
-    .string()
-    .refine(
-      (s) => hostnameLabel.test(s),
-      "SUBDOMAIN_NAME must be a valid DNS label"
-    ),
-  CERTIFICATE_ARN: z
-    .string()
-    .regex(arnRegex, "CERTIFICATE_ARN must be a valid AWS ARN"),
-  GITHUB_OWNER: z.string().min(1, "GITHUB_OWNER is required"),
-  GITHUB_REPOSITORY_NAME: z
-    .string()
-    .min(1, "GITHUB_REPOSITORY_NAME is required"),
-  GITHUB_BRANCH_NAME: z.string().min(1).default("main"),
-});
+const EnvSchema = z
+  .object({
+    ACCOUNT_ID: z
+      .string()
+      .regex(accountIdRegex, "ACCOUNT_ID must be a 12-digit AWS account ID"),
+    AWS_REGION: z.string().default("us-east-1"),
+    SENDER_EMAIL: z.email("SENDER_EMAIL must be a valid email"),
+    RECIPIENT_EMAILS: csvEmails,
+    DOMAIN_NAME: z
+      .string()
+      .regex(
+        domainRegex,
+        "DOMAIN_NAME must be a valid domain, e.g. example.com"
+      ),
+    CERTIFICATE_ARN: z
+      .string()
+      .regex(arnRegex, "CERTIFICATE_ARN must be a valid AWS ARN"),
+    GITHUB_OWNER: z.string().min(1, "GITHUB_OWNER is required"),
+    WEBSITES: z
+      .string()
+      .min(1, "WEBSITES is required")
+      .transform((str, ctx) => {
+        try {
+          return JSON.parse(str);
+        } catch (e) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "WEBSITES must be a valid JSON string",
+          });
+          return z.NEVER;
+        }
+      })
+      .pipe(
+        z.array(
+          z.object({
+            name: z.string().min(1),
+            subdomain: z
+              .string()
+              .refine(
+                (s) => hostnameLabel.test(s),
+                "subdomain must be a valid DNS label"
+              ),
+            githubRepositoryName: z.string().optional(),
+            githubBranchName: z.string().optional(),
+          })
+        )
+      ),
+  })
+  .transform((env) => ({
+    account: env.ACCOUNT_ID,
+    region: env.AWS_REGION,
+    senderEmail: env.SENDER_EMAIL,
+    recipientEmails: env.RECIPIENT_EMAILS,
+    domainName: env.DOMAIN_NAME,
+    certificateArn: env.CERTIFICATE_ARN,
+    githubOwner: env.GITHUB_OWNER,
+    websites: env.WEBSITES,
+  }));
 
 export const config = EnvSchema.parse(process.env);
