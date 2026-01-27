@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import * as website from "@sitblueprint/website-construct";
 import GithubDeployRole from "./constructs/github-deploy-role";
 import PullRequestReminderConstruct from "./constructs/pull-request-reminder-construct";
+import PasswordVaultConstruct from "./constructs/password-vault-construct";
 import { Construct } from "constructs";
 
 export interface WebsiteConfiguration {
@@ -95,5 +96,11 @@ export class BlueprintInfraStack extends cdk.Stack {
     });
 
     new PullRequestReminderConstruct(this, "PullRequestReminderFunction");
+
+    new PasswordVaultConstruct(this, "PasswordVault", {
+      codePath: "password-vault-function",
+      createUserPool: true,
+      namePrefix: "password-vault",
+    });
   }
 }
