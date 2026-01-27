@@ -17,10 +17,11 @@ export default class GithubDeployRole extends Construct {
     super(scope, id);
     const branchRef = props.branchRef ?? "refs/heads/main";
 
-    const ghOidc = new iam.OpenIdConnectProvider(this, "GitHubOIDC", {
-      url: "https://token.actions.githubusercontent.com",
-      clientIds: ["sts.amazonaws.com"],
-    });
+    const ghOidc = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+      this,
+      "GitHubOIDC",
+      `arn:aws:iam::${cdk.Stack.of(this).account}:oidc-provider/token.actions.githubusercontent.com`
+    );
 
     this.role = new iam.Role(this, "GithubDeployerRole", {
       roleName: `github-deployer-${props.repoName}`,
