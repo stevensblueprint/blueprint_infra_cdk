@@ -10,8 +10,7 @@ import { Construct } from "constructs";
 
 export interface PasswordVaultConstructProps {
   codePath: string;
-  userPool?: cognito.IUserPool;
-  createUserPool?: boolean;
+  userPool: cognito.UserPool;
   namePrefix?: string;
 }
 
@@ -35,7 +34,7 @@ export default class PasswordVaultConstruct extends Construct {
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecovery: true,
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
     this.fn = new lambda.Function(this, "PasswordVaultFunction", {
@@ -52,31 +51,6 @@ export default class PasswordVaultConstruct extends Construct {
     });
 
     this.table.grantReadWriteData(this.fn);
-
-    let userPool = props.userPool;
-    if (!userPool && props.createUserPool) {
-      this.userPool = new cognito.UserPool(this, "UserPool", {
-        userPoolName: `${prefix}-users`,
-        selfSignUpEnabled: true,
-        signInAliases: { email: true },
-        passwordPolicy: {
-          minLength: 12,
-          requireDigits: true,
-          requireLowercase: true,
-          requireUppercase: true,
-          requireSymbols: true,
-        },
-        accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-        removalPolicy: RemovalPolicy.RETAIN,
-      });
-      userPool = this.userPool;
-    }
-
-    if (!userPool) {
-      throw new Error(
-        "PasswordVaultConstruct: Provide props.userPool or set props.createUserPool=true",
-      );
-    }
 
     this.api = new apigw.RestApi(this, "PasswordVaultApi", {
       restApiName: `${prefix}-api`,
@@ -103,7 +77,7 @@ export default class PasswordVaultConstruct extends Construct {
       this,
       "CognitoAuthorizer",
       {
-        cognitoUserPools: [userPool],
+        cognitoUserPools: [props.userPool],
       },
     );
 
