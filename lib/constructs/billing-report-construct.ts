@@ -12,15 +12,13 @@ import {
 export interface BillingReportProps {
   readonly senderEmail: string;
   readonly recipientEmails: string;
+  readonly codePath: string;
 }
 
 export class BillingReportConstruct extends Construct {
   constructor(scope: Construct, id: string, props: BillingReportProps) {
     super(scope, id);
 
-    new ses.EmailIdentity(this, "BillingReportIdentity", {
-      identity: ses.Identity.email(props.senderEmail),
-    });
     const lambdaRole = new iam.Role(this, "BillingReportLambdaRole", {
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Allows Lambda to query Cost Explorer and send via SES",
@@ -62,7 +60,7 @@ export class BillingReportConstruct extends Construct {
         runtime: lambda.Runtime.PYTHON_3_8,
         handler: "main.handler",
         code: lambda.Code.fromAsset(
-          path.join(__dirname, "../lambda/billing-report-function"),
+          path.join(__dirname, "..", "..", "lambda", props.codePath),
         ),
         role: lambdaRole,
         timeout: Duration.minutes(1),
