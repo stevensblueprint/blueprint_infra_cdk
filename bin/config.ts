@@ -7,7 +7,7 @@ const arnRegex = /^arn:aws:[a-z0-9-]+:[a-z0-9-]*:\d{12}:.+$/i;
 const accountIdRegex = /^\d{12}$/;
 const hostnameLabel = /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$/;
 const domainRegex = new RegExp(
-  String.raw`^(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$`
+  String.raw`^(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$`,
 );
 
 const csvEmails = z
@@ -48,7 +48,7 @@ const EnvSchema = z
       .string()
       .regex(
         domainRegex,
-        "DOMAIN_NAME must be a valid domain, e.g. example.com"
+        "DOMAIN_NAME must be a valid domain, e.g. example.com",
       ),
     CERTIFICATE_ARN: z
       .string()
@@ -76,13 +76,15 @@ const EnvSchema = z
               .string()
               .refine(
                 (s) => hostnameLabel.test(s),
-                "subdomain must be a valid DNS label"
+                "subdomain must be a valid DNS label",
               ),
             githubRepositoryName: z.string().optional(),
             githubBranchName: z.string().optional(),
-          })
-        )
+            requiresAuth: z.boolean().optional().default(false),
+          }),
+        ),
       ),
+    NOTION_TOKEN: z.string().min(1, "NOTION_TOKEN is required"),
   })
   .transform((env) => ({
     account: env.ACCOUNT_ID,
@@ -93,6 +95,7 @@ const EnvSchema = z
     certificateArn: env.CERTIFICATE_ARN,
     githubOwner: env.GITHUB_OWNER,
     websites: env.WEBSITES,
+    notionToken: env.NOTION_TOKEN,
   }));
 
 export const config = EnvSchema.parse(process.env);
