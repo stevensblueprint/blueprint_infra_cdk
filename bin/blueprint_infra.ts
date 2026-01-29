@@ -5,6 +5,7 @@ import { config } from "./config";
 
 const app = new cdk.App();
 new BlueprintInfraStack(app, "blueprint-infra-stack", {
+  description: "Blueprint Infrastructure Stack",
   env: {
     account: config.account,
     region: config.region,
@@ -15,5 +16,4 @@ new BlueprintInfraStack(app, "blueprint-infra-stack", {
   certificateArn: config.certificateArn,
   githubOwner: config.githubOwner,
   websites: config.websites,
-  description: "Blueprint Infrastructure Stack",
 });
