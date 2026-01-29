@@ -20,7 +20,7 @@ export default class GithubDeployRole extends Construct {
     const ghOidc = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
       this,
       "GitHubOIDC",
-      `arn:aws:iam::${cdk.Stack.of(this).account}:oidc-provider/token.actions.githubusercontent.com`
+      `arn:aws:iam::${cdk.Stack.of(this).account}:oidc-provider/token.actions.githubusercontent.com`,
     );
 
     this.role = new iam.Role(this, "GithubDeployerRole", {
@@ -53,7 +53,7 @@ export default class GithubDeployRole extends Construct {
           "s3:GetObject",
         ],
         resources: [bucketArn, bucketObjsArn],
-      })
+      }),
     );
 
     this.role.addToPolicy(
@@ -64,7 +64,11 @@ export default class GithubDeployRole extends Construct {
             props.distributionId
           }`,
         ],
-      })
+      }),
     );
+
+    new cdk.CfnOutput(this, `${props.repoName}GithubDeployRoleArn`, {
+      value: this.role.roleArn,
+    });
   }
 }
