@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as website from "@sitblueprint/website-construct";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import GithubDeployRole from "./constructs/github-deploy-role";
 import PullRequestReminderConstruct from "./constructs/pull-request-reminder-construct";
 import PasswordVaultConstruct from "./constructs/password-vault-construct";
@@ -92,10 +93,22 @@ const siteFactoryMap = new Map<string, SiteFactory>([
 export class BlueprintInfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: BlueprintInfraStackProps) {
     super(scope, id, props);
+
     const authPool = new AuthPoolConstruct(this, "AuthPoolConstruct", {
       domainName: props.domainName,
       certificateArn: props.certificateArn,
     });
+
+    const githubTokenSecret = new secretsmanager.Secret(
+      this,
+      "GithubTokenSecret",
+      {
+        secretName: "buddy-bot/github-token",
+        description:
+          "GitHub token for Buddy Bot scheduled PR reminders (needs repo:read access to list PRs)",
+      },
+    );
+
     props.websites.forEach((site) => {
       const siteId = site.name.replace(/\s+/g, "-");
       const websiteConstruct = new website.Website(this, `${siteId}-Website`, {
@@ -149,6 +162,8 @@ export class BlueprintInfraStack extends cdk.Stack {
       codePath: "billing-report-function",
     });
 
-    new PullRequestReminderConstruct(this, "PullRequestReminderConstruct");
+    new PullRequestReminderConstruct(this, "PullRequestReminderConstruct", {
+      githubTokenSecret: githubTokenSecret,
+    });
   }
 }
