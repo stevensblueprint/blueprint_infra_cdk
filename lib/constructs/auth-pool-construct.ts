@@ -13,6 +13,8 @@ export interface AuthPoolConstructProps {
 
 export default class AuthPoolConstruct extends Construct {
   readonly userPool: cognito.UserPool;
+  readonly identityPool: cognito.CfnIdentityPool;
+
   constructor(scope: Construct, id: string, props: AuthPoolConstructProps) {
     super(scope, id);
     const smsRoleExternalId = "blueprint-cognito-sms";
@@ -39,13 +41,10 @@ export default class AuthPoolConstruct extends Construct {
       userPoolName: "blueprint-users",
       selfSignUpEnabled: false,
       signInAliases: { email: true },
-
       mfa: cognito.Mfa.REQUIRED,
       mfaSecondFactor: { sms: true, otp: true },
-
       smsRole: cognitoSmsRole,
       smsRoleExternalId,
-
       autoVerify: { email: true },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
     });
@@ -86,6 +85,28 @@ export default class AuthPoolConstruct extends Construct {
     new cdk.CfnOutput(this, "UserPoolId", {
       value: this.userPool.userPoolId,
     });
+  }
+
+  /**
+   * Creates a Cognito group for controlling access to a specific website
+   * @param siteId - Unique identifier for the website (e.g., "vault", "app")
+   * @returns The created Cognito user pool group
+   */
+  createWebsiteGroup(siteId: string): cognito.CfnUserPoolGroup {
+    const groupName = `website-${siteId}-access`;
+
+    const group = new cognito.CfnUserPoolGroup(this, `${siteId}WebsiteGroup`, {
+      userPoolId: this.userPool.userPoolId,
+      groupName: groupName,
+      description: `Access group for website ${siteId}`,
+    });
+
+    new cdk.CfnOutput(this, `${siteId}GroupName`, {
+      value: groupName,
+      description: `Group name for ${siteId} website access control`,
+    });
+
+    return group;
   }
 
   addClientApp(

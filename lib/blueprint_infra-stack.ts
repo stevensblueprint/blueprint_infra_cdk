@@ -132,12 +132,14 @@ export class BlueprintInfraStack extends cdk.Stack {
           branchRef: `refs/heads/${site.githubBranchName ?? "main"}`,
         });
 
-      if (site.requiresAuth)
+      if (site.requiresAuth) {
+        authPool.createWebsiteGroup(siteId);
         authPool.addClientApp(
           `${siteId}-WebsiteAuth`,
           [`https://${site.subdomain}.${props.domainName}/callback`],
           [`https://${site.subdomain}.${props.domainName}/logout`],
         );
+      }
 
       const factory = siteFactoryMap.get(site.name);
       if (factory) {
