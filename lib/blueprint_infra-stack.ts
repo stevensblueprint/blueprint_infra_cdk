@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import * as website from "@sitblueprint/website-construct";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as iam from "aws-cdk-lib/aws-iam";
 import GithubDeployRole from "./constructs/github-deploy-role";
 import PullRequestReminderConstruct from "./constructs/pull-request-reminder-construct";
 import PasswordVaultConstruct from "./constructs/password-vault-construct";
@@ -109,6 +110,15 @@ export class BlueprintInfraStack extends cdk.Stack {
       },
     );
 
+    const ghOidc = new iam.OpenIdConnectProvider(this, "GitHubOIDCProvider", {
+      url: "https://token.actions.githubusercontent.com",
+      clientIds: ["sts.amazonaws.com"],
+      thumbprints: [
+        "6938fd4d98bab03faadb97b34396831e3780aea1",
+        "1c58a3a8518e8759bf075b76b750d4f2df264fcd",
+      ],
+    });
+
     props.websites.forEach((site) => {
       const siteId = site.name.replace(/\s+/g, "-");
       const websiteConstruct = new website.Website(this, `${siteId}-Website`, {
@@ -129,6 +139,7 @@ export class BlueprintInfraStack extends cdk.Stack {
           distributionId: websiteConstruct.distribution.distributionId,
           repoOwner: props.githubOwner,
           repoName: site.githubRepositoryName,
+          ghOidc: ghOidc,
           branchRef: `refs/heads/${site.githubBranchName ?? "main"}`,
         });
 

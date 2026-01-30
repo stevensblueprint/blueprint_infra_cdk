@@ -7,6 +7,7 @@ export interface GithubDeployRoleProps {
   distributionId: string;
   repoOwner: string;
   repoName: string;
+  ghOidc: iam.OpenIdConnectProvider;
   branchRef?: string; // default: "refs/heads/main"
 }
 
@@ -15,22 +16,15 @@ export default class GithubDeployRole extends Construct {
 
   constructor(scope: Construct, id: string, props: GithubDeployRoleProps) {
     super(scope, id);
-    const branchRef = props.branchRef ?? "refs/heads/main";
-
-    const ghOidc = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
-      this,
-      "GitHubOIDC",
-      `arn:aws:iam::${cdk.Stack.of(this).account}:oidc-provider/token.actions.githubusercontent.com`,
-    );
 
     this.role = new iam.Role(this, "GithubDeployerRole", {
       roleName: `github-deployer-${props.repoName}`,
-      assumedBy: new iam.OpenIdConnectPrincipal(ghOidc).withConditions({
+      assumedBy: new iam.OpenIdConnectPrincipal(props.ghOidc).withConditions({
         StringEquals: {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
         },
         StringLike: {
-          "token.actions.githubusercontent.com:sub": `repo:${props.repoOwner}/${props.repoName}:ref:${branchRef}`,
+          "token.actions.githubusercontent.com:sub": `repo:${props.repoOwner}/${props.repoName}:*`,
         },
       }),
       description:
