@@ -162,7 +162,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 "Input": json.dumps(pr_reminder_input.to_dict()),
                 "RetryPolicy": {
                     "MaximumRetryAttempts": 2,
-                    "MaximumEventAge": 3600,
+                    "MaximumEventAgeInSeconds": 3600,
                 },
             },
             State="ENABLED",
@@ -187,7 +187,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     "Input": json.dumps(pr_reminder_input.to_dict()),
                     "RetryPolicy": {
                         "MaximumRetryAttempts": 2,
-                        "MaximumEventAge": 3600,
+                        "MaximumEventAgeInSeconds": 3600,
                     },
                 },
                 State="ENABLED",
