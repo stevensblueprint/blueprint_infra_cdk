@@ -140,16 +140,19 @@ export default class PullRequestReminderConstruct extends Construct {
     });
     this.functionUrl = fnUrl.url;
 
-    new cdk.CfnOutput(this, "PullRequestReminderFunctionUrl", {
+    new cdk.CfnOutput(this, "PRReminderFunctionUrl", {
       value: this.functionUrl,
+      description: "Function URL for the Pull Request Reminder Lambda",
     });
 
-    new cdk.CfnOutput(this, "PullRequestReminderScheduleGroup", {
+    new cdk.CfnOutput(this, "PRReminderScheduleGroup", {
       value: scheduleGroup.name ?? "buddy-bot-pr-reminders",
+      description: "EventBridge Schedule Group for PR reminders",
     });
 
-    new cdk.CfnOutput(this, "PullRequestReminderReminderLambdaArn", {
+    new cdk.CfnOutput(this, "PRReminderLambdaArn", {
       value: reminderHandler.functionArn,
+      description: "ARN of the underlying PR Reminder Lambda function",
     });
   }
 }

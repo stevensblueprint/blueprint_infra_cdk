@@ -61,8 +61,9 @@ export default class GithubDeployRole extends Construct {
       }),
     );
 
-    new cdk.CfnOutput(this, `${props.repoName}GithubDeployRoleArn`, {
+    new cdk.CfnOutput(this, `GithubDeployRoleArn${props.repoName}`, {
       value: this.role.roleArn,
+      description: `ARN of the GitHub Deploy Role for ${props.repoName}`,
     });
   }
 }

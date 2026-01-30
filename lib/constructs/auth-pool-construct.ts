@@ -82,8 +82,9 @@ export default class AuthPoolConstruct extends Construct {
         new targets.UserPoolDomainTarget(userPoolDomain),
       ),
     });
-    new cdk.CfnOutput(this, "UserPoolId", {
+    new cdk.CfnOutput(this, "AuthUserPoolId", {
       value: this.userPool.userPoolId,
+      description: "ID of the main Cognito User Pool",
     });
   }
 
@@ -101,9 +102,9 @@ export default class AuthPoolConstruct extends Construct {
       description: `Access group for website ${siteId}`,
     });
 
-    new cdk.CfnOutput(this, `${siteId}GroupName`, {
+    new cdk.CfnOutput(this, `AuthGroup${siteId}`, {
       value: groupName,
-      description: `Group name for ${siteId} website access control`,
+      description: `Cognito Group for ${siteId} website access control`,
     });
 
     return group;
@@ -137,8 +138,9 @@ export default class AuthPoolConstruct extends Construct {
         cognito.UserPoolClientIdentityProvider.COGNITO,
       ],
     });
-    new cdk.CfnOutput(this, `${appName}ClientId`, {
+    new cdk.CfnOutput(this, `AuthClient${appName}`, {
       value: client.userPoolClientId,
+      description: `Cognito Client ID for ${appName}`,
     });
     return client;
   }

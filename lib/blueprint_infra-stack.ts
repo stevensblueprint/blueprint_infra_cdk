@@ -161,11 +161,13 @@ export class BlueprintInfraStack extends cdk.Stack {
         });
       }
 
-      new cdk.CfnOutput(this, `${siteId}-BucketName`, {
+      new cdk.CfnOutput(this, `Site${siteId}Bucket`, {
         value: websiteConstruct.bucket.bucketName,
+        description: `S3 Bucket Name for ${site.name}`,
       });
-      new cdk.CfnOutput(this, `${siteId}-CloudFrontDistributionId`, {
+      new cdk.CfnOutput(this, `Site${siteId}Distribution`, {
         value: websiteConstruct.distribution.distributionId,
+        description: `CloudFront Distribution ID for ${site.name}`,
       });
     });
 

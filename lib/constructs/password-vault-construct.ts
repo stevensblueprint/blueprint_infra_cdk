@@ -109,6 +109,7 @@ export default class PasswordVaultConstruct extends Construct {
 
     new cdk.CfnOutput(this, "PasswordVaultApiUrl", {
       value: this.api.url,
+      description: "API Gateway URL for the Password Vault",
     });
   }
 }
