@@ -23,8 +23,14 @@ It provisions a comprehensive serverless environment including centralized authe
 
 3.  **Deploy:**
     ```bash
-    npx cdk deploy --all
+    cdk deploy --all
     ```
+
+## Speeding up deployments
+AWS lets you deploy stacks concurrently. The dependencies will be respected
+```bash
+cdk deploy --all --concurrency 3
+```
 
 ## Development
 
