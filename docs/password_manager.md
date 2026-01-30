@@ -195,3 +195,57 @@ View passwords
 - Audit trails (CloudTrail for KMS; structured app logs)
 - Sharing vaults (requires a more complex key-sharing model)
 - Client-side envelope encryption (DEK encrypted by KMS) for lower KMS costs at scale
+
+
+# Workflows user admin
+### Create user account
+
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username john.doe@company.com \
+  --user-attributes \
+    Name=email,Value=john.doe@company.com \
+    Name=email_verified,Value=true \
+    Name=given_name,Value=John \
+    Name=family_name,Value=Doe \
+  --desired-delivery-mediums EMAIL
+```
+
+### Grant access to multiple websites
+```bash
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username john.doe@company.com \
+  --group-name website-vault-access
+```
+
+```bash
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username john.doe@company.com \
+  --group-name website-app-access
+```
+
+### Delete user account
+Option A: Disable account (keeps data, can re-enable later)
+```bash
+aws cognito-idp admin-disable-user \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username john.doe@company.com
+```
+
+Option B: Delete account (permanent)
+```bash
+aws cognito-idp admin-delete-user \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username john.doe@company.com
+```
+
+### Audit User Access
+```bash
+aws cognito-idp admin-list-groups-for-user \
+  --user-pool-id us-east-1_XXXXXXXXX \
+  --username john.doe@company.com \
+  --query 'Groups[].GroupName'
+```
