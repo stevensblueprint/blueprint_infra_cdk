@@ -1,19 +1,51 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
-import { BlueprintInfraStack } from "../lib/blueprint_infra-stack";
+import { AuthStack } from "../lib/stacks/auth-stack";
+import { GithubInfraStack } from "../lib/stacks/github-infra-stack";
+import { WebsiteStack } from "../lib/stacks/website-stack";
+import { BillingStack } from "../lib/stacks/billing-stack";
 import { config } from "./config";
 
 const app = new cdk.App();
-new BlueprintInfraStack(app, "blueprint-infra-stack", {
-  description: "Blueprint Infrastructure Stack",
-  env: {
-    account: config.account,
-    region: config.region,
-  },
-  senderEmail: config.senderEmail,
-  recipientEmails: config.recipientEmails,
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION,
+};
+
+const authStack = new AuthStack(app, "blueprint-auth-stack", {
+  env,
   domainName: config.domainName,
   certificateArn: config.certificateArn,
-  githubOwner: config.githubOwner,
-  websites: config.websites,
 });
+
+const githubStack = new GithubInfraStack(app, "blueprint-github-stack", {
+  env,
+  githubOwner: config.githubOwner,
+});
+
+new BillingStack(app, "blueprint-billing-stack", {
+  env,
+  senderEmail: config.senderEmail,
+  recipientEmails: config.recipientEmails,
+});
+
+config.websites.forEach((website) => {
+  const siteId = website.name.replace(/\s+/g, "-");
+  const websiteStack = new WebsiteStack(
+    app,
+    `blueprint-${siteId}-website-stack`,
+    {
+      env,
+      domainName: config.domainName,
+      certificateArn: config.certificateArn,
+      githubOwner: config.githubOwner,
+      website,
+      userPool: authStack.authPool.userPool,
+      ghOidc: githubStack.ghOidc,
+    },
+  );
+  websiteStack.addDependency(authStack);
+  websiteStack.addDependency(githubStack);
+});
+
+app.synth();

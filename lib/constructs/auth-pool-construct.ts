@@ -1,4 +1,3 @@
-import * as iam from "aws-cdk-lib/aws-iam";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
@@ -17,39 +16,31 @@ export default class AuthPoolConstruct extends Construct {
 
   constructor(scope: Construct, id: string, props: AuthPoolConstructProps) {
     super(scope, id);
-    const smsRoleExternalId = "blueprint-cognito-sms";
-
-    const cognitoSmsRole = new iam.Role(this, "CognitoSmsRole", {
-      assumedBy: new iam.ServicePrincipal("cognito-idp.amazonaws.com", {
-        conditions: {
-          StringEquals: {
-            "sts:ExternalId": smsRoleExternalId,
-          },
-        },
-      }),
-    });
-
-    cognitoSmsRole.addToPolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["sns:Publish"],
-        resources: ["*"],
-      }),
-    );
 
     this.userPool = new cognito.UserPool(this, "BlueprintUserPool", {
       userPoolName: "blueprint-users",
       selfSignUpEnabled: false,
       signInAliases: { email: true },
       mfa: cognito.Mfa.REQUIRED,
-      mfaSecondFactor: { sms: true, otp: true },
-      smsRole: cognitoSmsRole,
-      smsRoleExternalId,
+      mfaSecondFactor: { sms: false, otp: true },
+      email: cognito.UserPoolEmail.withCognito(),
       autoVerify: { email: true },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      standardAttributes: {
+        email: {
+          required: true,
+          mutable: false,
+        },
+        givenName: {
+          required: true,
+          mutable: true,
+        },
+        familyName: {
+          required: true,
+          mutable: true,
+        },
+      },
     });
-
-    this.userPool.node.addDependency(cognitoSmsRole);
 
     const authCert = acm.Certificate.fromCertificateArn(
       this,
