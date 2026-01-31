@@ -109,6 +109,16 @@ export class WebsiteStack extends cdk.Stack {
         ],
       });
 
+      new cognito.CfnManagedLoginBranding(
+        this,
+        `${siteId}ManagedLoginBranding`,
+        {
+          userPoolId: props.userPool.userPoolId,
+          clientId: client.userPoolClientId,
+          useCognitoProvidedValues: true,
+        },
+      );
+
       new cdk.CfnOutput(this, `AuthClient${siteId}`, {
         value: client.userPoolClientId,
         description: `Cognito Client ID for ${siteId}`,
