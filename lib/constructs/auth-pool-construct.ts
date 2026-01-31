@@ -100,39 +100,4 @@ export default class AuthPoolConstruct extends Construct {
 
     return group;
   }
-
-  addClientApp(
-    appName: string,
-    callbackUrls: string[],
-    logoutUrls: string[],
-  ): cognito.UserPoolClient {
-    const client = this.userPool.addClient(appName, {
-      userPoolClientName: appName,
-      generateSecret: false,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-      },
-      oAuth: {
-        flows: {
-          authorizationCodeGrant: true,
-        },
-        scopes: [
-          cognito.OAuthScope.EMAIL,
-          cognito.OAuthScope.OPENID,
-          cognito.OAuthScope.PROFILE,
-        ],
-        callbackUrls: callbackUrls,
-        logoutUrls: logoutUrls,
-      },
-      supportedIdentityProviders: [
-        cognito.UserPoolClientIdentityProvider.COGNITO,
-      ],
-    });
-    new cdk.CfnOutput(this, `AuthClient${appName}`, {
-      value: client.userPoolClientId,
-      description: `Cognito Client ID for ${appName}`,
-    });
-    return client;
-  }
 }
