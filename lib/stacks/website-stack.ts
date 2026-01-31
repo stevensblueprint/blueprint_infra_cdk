@@ -46,6 +46,8 @@ const siteFactoryMap = new Map<string, SiteFactory>([
   ],
 ]);
 
+const LOCAL_URLS = new Set(["http://localhost:3000", "http://localhost:5173"]);
+
 export class WebsiteStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WebsiteStackProps) {
     super(scope, id, props);
@@ -101,8 +103,12 @@ export class WebsiteStack extends cdk.Stack {
           ],
           callbackUrls: [
             `https://${site.subdomain}.${props.domainName}/callback`,
+            ...Array.from(LOCAL_URLS),
           ],
-          logoutUrls: [`https://${site.subdomain}.${props.domainName}/logout`],
+          logoutUrls: [
+            `https://${site.subdomain}.${props.domainName}/logout`,
+            ...Array.from(LOCAL_URLS),
+          ],
         },
         supportedIdentityProviders: [
           cognito.UserPoolClientIdentityProvider.COGNITO,
