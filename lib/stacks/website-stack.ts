@@ -12,6 +12,7 @@ export interface WebsiteConfiguration {
   readonly githubRepositoryName?: string;
   readonly githubBranchName?: string;
   readonly requiresAuth?: boolean;
+  readonly includeRootDomain?: boolean;
 }
 
 export interface WebsiteStackProps extends cdk.StackProps {
@@ -64,6 +65,7 @@ export class WebsiteStack extends cdk.Stack {
         domainName: props.domainName,
         subdomainName: site.subdomain,
         certificateArn: props.certificateArn,
+        includeRootDomain: site.includeRootDomain ?? false,
       },
     });
 

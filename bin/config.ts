@@ -81,10 +81,27 @@ const EnvSchema = z
             githubRepositoryName: z.string().optional(),
             githubBranchName: z.string().optional(),
             requiresAuth: z.boolean().optional().default(false),
+            includeRootDomain: z.boolean().optional().default(false),
           }),
         ),
       ),
     NOTION_TOKEN: z.string().min(1, "NOTION_TOKEN is required"),
+  })
+  .superRefine((env, ctx) => {
+    const rootIdxs = env.WEBSITES.map((w, i) => {
+      if (w.includeRootDomain) i;
+      return -1;
+    }).filter((i) => i !== -1);
+
+    if (rootIdxs.length > 1) {
+      for (const i of rootIdxs) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["WEBSITES", i, "includeRootDomain"],
+          message: "Only one website may set includeRootDomain=true",
+        });
+      }
+    }
   })
   .transform((env) => ({
     account: env.ACCOUNT_ID,
