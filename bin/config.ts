@@ -51,30 +51,38 @@ const WebsiteSchema = z.object({
 });
 
 const WebsitesSchema = z
-  .preprocess((input) => {
-    if (Array.isArray(input) || (input && typeof input === "object"))
-      return input;
+  .any()
+  .transform((input, ctx) => {
+    if (Array.isArray(input)) return input;
     if (typeof input === "string") {
       const trimmed = input.trim();
-      if (trimmed.length === 0) return input;
+      if (!trimmed) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "WEBSITES is required",
+        });
+        return z.NEVER;
+      }
+
       try {
-        return JSON.parse(trimmed);
+        const parsed = JSON.parse(trimmed);
+        return parsed;
       } catch {
-        return "__INVALID_JSON__";
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "WEBSITES must be valid JSON (stringified) or a JSON array value",
+        });
+        return z.NEVER;
       }
     }
-
-    return input;
-  }, z.array(WebsiteSchema))
-  .superRefine((val, ctx) => {
-    if (val === ("__INVALID_JSON__" as any)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          "WEBSITES must be valid JSON (stringified) or a JSON array value",
-      });
-    }
-  });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "WEBSITES must be a JSON array or a JSON string",
+    });
+    return z.NEVER;
+  })
+  .pipe(z.array(WebsiteSchema));
 
 const EnvSchema = z
   .object({
@@ -94,7 +102,7 @@ const EnvSchema = z
       .string()
       .regex(arnRegex, "CERTIFICATE_ARN must be a valid AWS ARN"),
     GITHUB_OWNER: z.string().min(1, "GITHUB_OWNER is required"),
-    WEBSITES: WebsitesSchema.default([]),
+    WEBSITES: WebsitesSchema,
     NOTION_TOKEN: z.string().min(1, "NOTION_TOKEN is required"),
   })
   .superRefine((env, ctx) => {
