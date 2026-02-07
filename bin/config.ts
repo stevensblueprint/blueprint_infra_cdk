@@ -36,6 +36,46 @@ const csvEmails = z
     }
   });
 
+const WebsiteSchema = z.object({
+  name: z.string().min(1),
+  subdomain: z
+    .string()
+    .refine(
+      (s) => hostnameLabel.test(s),
+      "subdomain must be a valid DNS label",
+    ),
+  githubRepositoryName: z.string().optional(),
+  githubBranchName: z.string().optional(),
+  requiresAuth: z.boolean().optional().default(false),
+  includeRootDomain: z.boolean().optional().default(false),
+});
+
+const WebsitesSchema = z
+  .preprocess((input) => {
+    if (Array.isArray(input) || (input && typeof input === "object"))
+      return input;
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (trimmed.length === 0) return input;
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return "__INVALID_JSON__";
+      }
+    }
+
+    return input;
+  }, z.array(WebsiteSchema))
+  .superRefine((val, ctx) => {
+    if (val === ("__INVALID_JSON__" as any)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "WEBSITES must be valid JSON (stringified) or a JSON array value",
+      });
+    }
+  });
+
 const EnvSchema = z
   .object({
     ACCOUNT_ID: z
@@ -54,37 +94,7 @@ const EnvSchema = z
       .string()
       .regex(arnRegex, "CERTIFICATE_ARN must be a valid AWS ARN"),
     GITHUB_OWNER: z.string().min(1, "GITHUB_OWNER is required"),
-    WEBSITES: z
-      .string()
-      .min(1, "WEBSITES is required")
-      .transform((str, ctx) => {
-        try {
-          return JSON.parse(str);
-        } catch (e) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "WEBSITES must be a valid JSON string",
-          });
-          return z.NEVER;
-        }
-      })
-      .pipe(
-        z.array(
-          z.object({
-            name: z.string().min(1),
-            subdomain: z
-              .string()
-              .refine(
-                (s) => hostnameLabel.test(s),
-                "subdomain must be a valid DNS label",
-              ),
-            githubRepositoryName: z.string().optional(),
-            githubBranchName: z.string().optional(),
-            requiresAuth: z.boolean().optional().default(false),
-            includeRootDomain: z.boolean().optional().default(false),
-          }),
-        ),
-      ),
+    WEBSITES: WebsitesSchema.default([]),
     NOTION_TOKEN: z.string().min(1, "NOTION_TOKEN is required"),
   })
   .superRefine((env, ctx) => {
