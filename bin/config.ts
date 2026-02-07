@@ -103,7 +103,6 @@ const EnvSchema = z
       .regex(arnRegex, "CERTIFICATE_ARN must be a valid AWS ARN"),
     GITHUB_OWNER: z.string().min(1, "GITHUB_OWNER is required"),
     WEBSITES: WebsitesSchema,
-    NOTION_TOKEN: z.string().min(1, "NOTION_TOKEN is required"),
   })
   .superRefine((env, ctx) => {
     const rootIdxs = env.WEBSITES.map((w, i) => {
@@ -130,7 +129,6 @@ const EnvSchema = z
     certificateArn: env.CERTIFICATE_ARN,
     githubOwner: env.GITHUB_OWNER,
     websites: env.WEBSITES,
-    notionToken: env.NOTION_TOKEN,
   }));
 
 export const config = EnvSchema.parse(process.env);
