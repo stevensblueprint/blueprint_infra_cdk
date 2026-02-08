@@ -42,6 +42,22 @@ export default class AuthPoolConstruct extends Construct {
       },
     });
 
+    const cfnUserPool = this.userPool.node.defaultChild as cognito.CfnUserPool;
+    cfnUserPool.userAttributeUpdateSettings = {
+      attributesRequireVerificationBeforeUpdate: ["email"],
+    };
+
+    cfnUserPool.addPropertyOverride("MfaConfiguration", "OPTIONAL");
+    cfnUserPool.addPropertyOverride("EnabledMfas", [
+      "SOFTWARE_TOKEN_MFA",
+      "WEB_AUTHN",
+    ]);
+
+    cfnUserPool.addPropertyOverride("WebAuthnConfiguration", {
+      RelyingPartyId: props.domainName,
+      UserVerification: "preferred",
+    });
+
     const authCert = acm.Certificate.fromCertificateArn(
       this,
       "AuthCert",
