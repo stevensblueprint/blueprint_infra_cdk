@@ -47,7 +47,7 @@ const siteFactoryMap = new Map<string, SiteFactory>([
   ],
 ]);
 
-const LOCAL_URLS = new Set(["http://localhost:3000", "http://localhost:5173"]);
+const LOCAL_URLS = ["http://localhost:3000", "http://localhost:5173"];
 
 export class WebsiteStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WebsiteStackProps) {
@@ -105,11 +105,11 @@ export class WebsiteStack extends cdk.Stack {
           ],
           callbackUrls: [
             `https://${site.subdomain}.${props.domainName}/callback`,
-            ...Array.from(LOCAL_URLS),
+            ...LOCAL_URLS.map((url) => `${url}/callback`),
           ],
           logoutUrls: [
             `https://${site.subdomain}.${props.domainName}/logout`,
-            ...Array.from(LOCAL_URLS),
+            ...LOCAL_URLS.map((url) => `${url}/logout`),
           ],
         },
         supportedIdentityProviders: [
