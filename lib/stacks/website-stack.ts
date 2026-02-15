@@ -5,6 +5,7 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
 import GithubDeployRole from "../constructs/github-deploy-role";
 import PasswordVaultConstruct from "../constructs/password-vault-construct";
+import AdminConstruct from "../constructs/admin-construct";
 
 export interface WebsiteConfiguration {
   readonly name: string;
@@ -45,6 +46,15 @@ const siteFactoryMap = new Map<string, SiteFactory>([
       });
     },
   ],
+  [
+    "admin",
+    (scope, id, { siteId, userPool }) => {
+      new AdminConstruct(scope, id, {
+        userPool: userPool as cognito.UserPool,
+        namePrefix: siteId,
+      });
+    },
+  ],
 ]);
 
 const LOCAL_URLS = ["http://localhost:3000", "http://localhost:5173"];
@@ -66,6 +76,11 @@ export class WebsiteStack extends cdk.Stack {
         subdomainName: site.subdomain,
         certificateArn: props.certificateArn,
         includeRootDomain: site.includeRootDomain ?? false,
+      },
+      previewConfig: {
+        bucketPrefix: `${siteId}-preview-`,
+        bucketCount: 5,
+        maxLeaseHours: 24,
       },
     });
 
