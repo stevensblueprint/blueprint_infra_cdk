@@ -84,10 +84,27 @@ export class WebsiteStack extends cdk.Stack {
       },
     });
 
+    websiteConstruct.previewEnvironment?.buckets.forEach((bucket, index) => {
+      new cdk.CfnOutput(this, `PreviewBucket${siteId}${index + 1}`, {
+        value: bucket.bucketName,
+        description: `S3 Bucket Name for ${site.name} Preview Environment ${index + 1}`,
+      });
+    });
+
     if (site.githubRepositoryName) {
       new GithubDeployRole(this, `${siteId}-GithubDeployRole`, {
-        bucketName: websiteConstruct.bucket.bucketName,
-        distributionId: websiteConstruct.distribution.distributionId,
+        bucketNames: [
+          websiteConstruct.bucket.bucketName,
+          ...(websiteConstruct.previewEnvironment?.buckets.map(
+            (b) => b.bucketName,
+          ) ?? []),
+        ],
+        distributionIds: [
+          websiteConstruct.distribution.distributionId,
+          ...(websiteConstruct.previewEnvironment?.distributions.map(
+            (d) => d.distributionId,
+          ) ?? []),
+        ],
         repoOwner: props.githubOwner,
         repoName: site.githubRepositoryName,
         ghOidc: props.ghOidc,

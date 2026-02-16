@@ -3,8 +3,8 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 export interface GithubDeployRoleProps {
-  bucketName: string;
-  distributionId: string;
+  bucketNames: string[];
+  distributionIds: string[];
   repoOwner: string;
   repoName: string;
   ghOidc: iam.OpenIdConnectProvider;
@@ -31,8 +31,10 @@ export default class GithubDeployRole extends Construct {
         "GitHub Actions can deploy static site to S3 and invalidate CloudFront.",
     });
 
-    const bucketArn = `arn:aws:s3:::${props.bucketName}`;
-    const bucketObjsArn = `${bucketArn}/*`;
+    const bucketArns = props.bucketNames.map(
+      (bucketName) => `arn:aws:s3:::${bucketName}`,
+    );
+    const bucketObjsArns = bucketArns.map((bucketArn) => `${bucketArn}/*`);
 
     this.role.addToPolicy(
       new iam.PolicyStatement({
@@ -46,7 +48,7 @@ export default class GithubDeployRole extends Construct {
           "s3:GetBucketLocation",
           "s3:GetObject",
         ],
-        resources: [bucketArn, bucketObjsArn],
+        resources: [...bucketArns, ...bucketObjsArns],
       }),
     );
 
@@ -54,9 +56,10 @@ export default class GithubDeployRole extends Construct {
       new iam.PolicyStatement({
         actions: ["cloudfront:CreateInvalidation"],
         resources: [
-          `arn:aws:cloudfront::${cdk.Stack.of(this).account}:distribution/${
-            props.distributionId
-          }`,
+          ...props.distributionIds.map(
+            (distributionId) =>
+              `arn:aws:cloudfront::${cdk.Stack.of(this).account}:distribution/${distributionId}`,
+          ),
         ],
       }),
     );
