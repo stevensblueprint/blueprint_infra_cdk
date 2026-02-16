@@ -46,15 +46,15 @@ const siteFactoryMap = new Map<string, SiteFactory>([
       });
     },
   ],
-  [
-    "admin",
-    (scope, id, { siteId, userPool }) => {
-      new AdminConstruct(scope, id, {
-        userPool: userPool as cognito.UserPool,
-        namePrefix: siteId,
-      });
-    },
-  ],
+  // [
+  //   "admin",
+  //   (scope, id, { siteId, userPool }) => {
+  //     new AdminConstruct(scope, id, {
+  //       userPool: userPool as cognito.UserPool,
+  //       namePrefix: siteId,
+  //     });
+  //   },
+  // ],
 ]);
 
 const LOCAL_URLS = ["http://localhost:3000", "http://localhost:5173"];
