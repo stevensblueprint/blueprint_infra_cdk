@@ -47,6 +47,7 @@ export default class GithubDeployRole extends Construct {
           "s3:ListBucketMultipartUploads",
           "s3:GetBucketLocation",
           "s3:GetObject",
+          "s3:ListObjectsV2",
         ],
         resources: [...bucketArns, ...bucketObjsArns],
       }),
