@@ -19,7 +19,9 @@ export default class AdminConstruct extends Construct {
     this.fn = new lambda.Function(this, `${props.namePrefix}-AdminFunction`, {
       runtime: lambda.Runtime.PYTHON_3_11,
       handler: "main.handler",
-      code: lambda.Code.fromAsset(path.join(__dirname, "admin-api-function")),
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "..", "..", "lambda", "admin-api-function"),
+      ),
     });
 
     this.api = new apigw.LambdaRestApi(this, `${props.namePrefix}-AdminApi`, {
