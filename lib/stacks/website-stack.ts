@@ -80,7 +80,7 @@ export class WebsiteStack extends cdk.Stack {
       previewConfig: {
         bucketPrefix: `${siteId}-preview-`,
         bucketCount: 5,
-        maxLeaseHours: 24,
+        maxLeaseHours: 12,
       },
     });
 
