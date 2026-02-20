@@ -136,7 +136,9 @@ export default class HsdsConstruct extends Construct {
         repoName: props.githubRepositoryName,
         repository: this.repository,
         ghOidc: props.ghOidc,
-        branchRef: `refs/heads/${props.githubBranchName ?? "main"}`,
+        branchRef: props.githubBranchName
+          ? `refs/heads/${props.githubBranchName}`
+          : undefined,
       },
     );
 

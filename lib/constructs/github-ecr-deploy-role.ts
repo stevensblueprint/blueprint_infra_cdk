@@ -16,7 +16,7 @@ export default class GithubEcrDeployRole extends Construct {
 
   constructor(scope: Construct, id: string, props: GithubEcrDeployRoleProps) {
     super(scope, id);
-    const branchRef = props.branchRef ?? "refs/heads/main";
+    const branchRef = props.branchRef ?? "refs/heads/*";
     const normalizedBranchRef = branchRef.replace(/^ref:/, "");
 
     this.role = new iam.Role(this, "GithubEcrDeployerRole", {

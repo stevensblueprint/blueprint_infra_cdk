@@ -70,7 +70,7 @@ const siteFactoryMap = new Map<string, SiteFactory>([
         userPool: userPool as cognito.UserPool,
         namePrefix: siteId,
         githubOwner,
-        githubRepositoryName: site.githubRepositoryName ?? `${siteId}-service`,
+        githubRepositoryName: site.githubRepositoryName ?? siteId,
         githubBranchName: site.githubBranchName,
         ghOidc,
         domainName,
