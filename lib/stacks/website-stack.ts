@@ -6,6 +6,7 @@ import { Construct } from "constructs";
 import GithubDeployRole from "../constructs/github-deploy-role";
 import PasswordVaultConstruct from "../constructs/password-vault-construct";
 import AdminConstruct from "../constructs/admin-construct";
+import HsdsConstruct from "../constructs/hsds-construct";
 
 export interface WebsiteConfiguration {
   readonly name: string;
@@ -32,6 +33,10 @@ type SiteFactory = (
     site: WebsiteConfiguration;
     siteId: string;
     userPool: cognito.IUserPool;
+    githubOwner: string;
+    ghOidc: iam.OpenIdConnectProvider;
+    domainName: string;
+    certificateArn: string;
   },
 ) => void;
 
@@ -43,6 +48,34 @@ const siteFactoryMap = new Map<string, SiteFactory>([
         codePath: "password-vault-function",
         userPool: userPool as cognito.UserPool,
         namePrefix: siteId,
+      });
+    },
+  ],
+  [
+    "hsds",
+    (
+      scope,
+      id,
+      {
+        site,
+        siteId,
+        userPool,
+        githubOwner,
+        ghOidc,
+        domainName,
+        certificateArn,
+      },
+    ) => {
+      new HsdsConstruct(scope, id, {
+        userPool: userPool as cognito.UserPool,
+        namePrefix: siteId,
+        githubOwner,
+        githubRepositoryName: site.githubRepositoryName ?? `${siteId}-service`,
+        githubBranchName: site.githubBranchName,
+        ghOidc,
+        domainName,
+        certificateArn,
+        subdomainName: site.subdomain,
       });
     },
   ],
@@ -171,6 +204,10 @@ export class WebsiteStack extends cdk.Stack {
         site,
         siteId,
         userPool: props.userPool,
+        githubOwner: props.githubOwner,
+        ghOidc: props.ghOidc,
+        domainName: props.domainName,
+        certificateArn: props.certificateArn,
       });
     }
 
