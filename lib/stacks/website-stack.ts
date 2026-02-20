@@ -52,7 +52,7 @@ const siteFactoryMap = new Map<string, SiteFactory>([
     },
   ],
   [
-    "hsds",
+    "hsds-transformer",
     (
       scope,
       id,
