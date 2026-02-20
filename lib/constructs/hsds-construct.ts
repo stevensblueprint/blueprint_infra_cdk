@@ -40,94 +40,94 @@ export default class HsdsConstruct extends Construct {
       },
     );
 
-    // const vpc = new ec2.Vpc(this, `${props.namePrefix}-HsdsVpc`, {
-    //   natGateways: 0,
-    //   maxAzs: 2,
-    //   subnetConfiguration: [
-    //     {
-    //       name: "Public",
-    //       subnetType: ec2.SubnetType.PUBLIC,
-    //       cidrMask: 24,
-    //     },
-    //   ],
-    // });
+    const vpc = new ec2.Vpc(this, `${props.namePrefix}-HsdsVpc`, {
+      natGateways: 0,
+      maxAzs: 2,
+      subnetConfiguration: [
+        {
+          name: "Public",
+          subnetType: ec2.SubnetType.PUBLIC,
+          cidrMask: 24,
+        },
+      ],
+    });
 
-    // const cluster = new ecs.Cluster(this, `${props.namePrefix}-HsdsCluster`, {
-    //   vpc,
-    //   enableFargateCapacityProviders: true,
-    //   containerInsightsV2: ecs.ContainerInsights.ENHANCED,
-    // });
+    const cluster = new ecs.Cluster(this, `${props.namePrefix}-HsdsCluster`, {
+      vpc,
+      enableFargateCapacityProviders: true,
+      containerInsightsV2: ecs.ContainerInsights.ENHANCED,
+    });
 
-    // const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
-    //   domainName: props.domainName,
-    // });
+    const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
+      domainName: props.domainName,
+    });
 
-    // const certificate = acm.Certificate.fromCertificateArn(
-    //   this,
-    //   "Certificate",
-    //   props.certificateArn,
-    // );
+    const certificate = acm.Certificate.fromCertificateArn(
+      this,
+      "Certificate",
+      props.certificateArn,
+    );
 
-    // this.service = new ecsPatterns.ApplicationLoadBalancedFargateService(
-    //   this,
-    //   `${props.namePrefix}-HsdsService`,
-    //   {
-    //     cluster,
-    //     publicLoadBalancer: true,
-    //     assignPublicIp: true,
-    //     desiredCount: props.initialDesiredCount,
-    //     cpu: 512,
-    //     memoryLimitMiB: 1024,
-    //     taskImageOptions: {
-    //       containerName: "hsds",
-    //       containerPort: 80,
-    //       image: ecs.ContainerImage.fromEcrRepository(
-    //         this.repository,
-    //         "latest",
-    //       ),
-    //     },
-    //     capacityProviderStrategies: [
-    //       {
-    //         capacityProvider: "FARGATE_SPOT",
-    //         weight: 1,
-    //       },
-    //     ],
-    //     deploymentController: {
-    //       type: ecs.DeploymentControllerType.ECS,
-    //     },
-    //     // circuitBreaker: { rollback: true },
-    //     // healthCheckGracePeriod: cdk.Duration.seconds(200),
-    //     taskSubnets: {
-    //       subnetType: ec2.SubnetType.PUBLIC,
-    //     },
-    //     minHealthyPercent: 50,
-    //     maxHealthyPercent: 200,
-    //     domainName: `${props.subdomainName}.${props.domainName}`,
-    //     domainZone: hostedZone,
-    //     certificate: certificate,
-    //     redirectHTTP: true,
-    //   },
-    // );
+    this.service = new ecsPatterns.ApplicationLoadBalancedFargateService(
+      this,
+      `${props.namePrefix}-HsdsService`,
+      {
+        cluster,
+        publicLoadBalancer: true,
+        assignPublicIp: true,
+        desiredCount: props.initialDesiredCount,
+        cpu: 512,
+        memoryLimitMiB: 1024,
+        taskImageOptions: {
+          containerName: "hsds",
+          containerPort: 8000,
+          image: ecs.ContainerImage.fromEcrRepository(
+            this.repository,
+            "latest",
+          ),
+        },
+        capacityProviderStrategies: [
+          {
+            capacityProvider: "FARGATE_SPOT",
+            weight: 1,
+          },
+        ],
+        deploymentController: {
+          type: ecs.DeploymentControllerType.ECS,
+        },
+        circuitBreaker: { rollback: true },
+        healthCheckGracePeriod: cdk.Duration.seconds(200),
+        taskSubnets: {
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+        minHealthyPercent: 50,
+        maxHealthyPercent: 200,
+        domainName: `${props.subdomainName}.${props.domainName}`,
+        domainZone: hostedZone,
+        certificate: certificate,
+        redirectHTTP: true,
+      },
+    );
 
-    // const scaling = this.service.service.autoScaleTaskCount({
-    //   minCapacity: 0,
-    //   maxCapacity: 2,
-    // });
+    const scaling = this.service.service.autoScaleTaskCount({
+      minCapacity: 0,
+      maxCapacity: 2,
+    });
 
-    // scaling.scaleOnCpuUtilization("CpuScaling", {
-    //   targetUtilizationPercent: 80,
-    //   scaleInCooldown: cdk.Duration.seconds(60),
-    //   scaleOutCooldown: cdk.Duration.seconds(60),
-    // });
+    scaling.scaleOnCpuUtilization("CpuScaling", {
+      targetUtilizationPercent: 80,
+      scaleInCooldown: cdk.Duration.seconds(60),
+      scaleOutCooldown: cdk.Duration.seconds(60),
+    });
 
-    // this.service.targetGroup.configureHealthCheck({
-    //   path: "/health",
-    //   port: "80",
-    //   healthyThresholdCount: 2,
-    //   unhealthyThresholdCount: 3,
-    //   timeout: cdk.Duration.seconds(10),
-    //   interval: cdk.Duration.seconds(30),
-    // });
+    this.service.targetGroup.configureHealthCheck({
+      path: "/health",
+      port: "traffic-port",
+      healthyThresholdCount: 2,
+      unhealthyThresholdCount: 3,
+      timeout: cdk.Duration.seconds(10),
+      interval: cdk.Duration.seconds(30),
+    });
 
     const githubDeployRole = new GithubEcrDeployRole(
       this,
