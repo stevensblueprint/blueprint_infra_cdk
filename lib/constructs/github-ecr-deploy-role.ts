@@ -20,6 +20,7 @@ export default class GithubEcrDeployRole extends Construct {
     const normalizedBranchRef = branchRef.replace(/^ref:/, "");
 
     this.role = new iam.Role(this, "GithubEcrDeployerRole", {
+      roleName: `github-ecr-deployer-${props.repoName}`,
       assumedBy: new iam.OpenIdConnectPrincipal(props.ghOidc).withConditions({
         StringEquals: {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
