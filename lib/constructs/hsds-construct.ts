@@ -34,6 +34,7 @@ export default class HsdsConstruct extends Construct {
       this,
       `${props.namePrefix}-HsdsRepository`,
       {
+        repositoryName: props.githubRepositoryName.toLowerCase(),
         imageScanOnPush: true,
         lifecycleRules: [{ maxImageCount: 30 }],
       },
