@@ -62,11 +62,11 @@ export default class HsdsConstruct extends Construct {
       domainName: props.domainName,
     });
 
-    const certificate = acm.Certificate.fromCertificateArn(
-      this,
-      "Certificate",
-      props.certificateArn,
-    );
+    const endpointDomainName = `${props.subdomainName}.${props.domainName}`;
+    const certificate = new acm.Certificate(this, "Certificate", {
+      domainName: endpointDomainName,
+      validation: acm.CertificateValidation.fromDns(hostedZone),
+    });
 
     this.service = new ecsPatterns.ApplicationLoadBalancedFargateService(
       this,
@@ -102,9 +102,9 @@ export default class HsdsConstruct extends Construct {
         },
         minHealthyPercent: 50,
         maxHealthyPercent: 200,
-        domainName: `${props.subdomainName}.${props.domainName}`,
+        domainName: endpointDomainName,
         domainZone: hostedZone,
-        certificate: certificate,
+        certificate,
         redirectHTTP: true,
       },
     );
@@ -153,14 +153,19 @@ export default class HsdsConstruct extends Construct {
       description: "ECR repository name for the HSDS service",
     });
 
-    // new cdk.CfnOutput(this, `${props.namePrefix}HsdsAlbDnsName`, {
-    //   value: this.service.loadBalancer.loadBalancerDnsName,
-    //   description: "ALB DNS name for HSDS service",
-    // });
+    new cdk.CfnOutput(this, `${props.namePrefix}HsdsAlbDnsName`, {
+      value: this.service.loadBalancer.loadBalancerDnsName,
+      description: "ALB DNS name for HSDS service",
+    });
 
     new cdk.CfnOutput(this, `${props.namePrefix}HsdsEndpointUrl`, {
-      value: `https://${props.subdomainName}.${props.domainName}`,
+      value: `https://${endpointDomainName}`,
       description: "Public HTTPS endpoint URL for HSDS",
+    });
+
+    new cdk.CfnOutput(this, `${props.namePrefix}HsdsCertificateArn`, {
+      value: certificate.certificateArn,
+      description: "ACM certificate ARN for the HSDS HTTPS endpoint",
     });
 
     new cdk.CfnOutput(this, `${props.namePrefix}HsdsGithubDeployRoleName`, {
