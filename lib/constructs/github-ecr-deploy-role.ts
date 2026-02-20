@@ -25,10 +25,7 @@ export default class GithubEcrDeployRole extends Construct {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
         },
         StringLike: {
-          "token.actions.githubusercontent.com:sub": [
-            `repo:${props.repoOwner}/${props.repoName}:ref:${normalizedBranchRef}`,
-            `repo:${props.repoOwner}/${props.repoName}:${normalizedBranchRef}`,
-          ],
+          "token.actions.githubusercontent.com:sub": `repo:${props.repoOwner}/${props.repoName}:*`,
         },
       }),
       description: "GitHub Actions can push container images to ECR.",
