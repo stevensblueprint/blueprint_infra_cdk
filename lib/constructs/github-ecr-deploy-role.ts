@@ -16,6 +16,8 @@ export default class GithubEcrDeployRole extends Construct {
 
   constructor(scope: Construct, id: string, props: GithubEcrDeployRoleProps) {
     super(scope, id);
+    const branchRef = props.branchRef ?? "refs/heads/main";
+    const normalizedBranchRef = branchRef.replace(/^ref:/, "");
 
     this.role = new iam.Role(this, "GithubEcrDeployerRole", {
       assumedBy: new iam.OpenIdConnectPrincipal(props.ghOidc).withConditions({
@@ -23,7 +25,10 @@ export default class GithubEcrDeployRole extends Construct {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
         },
         StringLike: {
-          "token.actions.githubusercontent.com:sub": `repo:${props.repoOwner}/${props.repoName}:${props.branchRef ?? "refs/heads/main"}`,
+          "token.actions.githubusercontent.com:sub": [
+            `repo:${props.repoOwner}/${props.repoName}:ref:${normalizedBranchRef}`,
+            `repo:${props.repoOwner}/${props.repoName}:${normalizedBranchRef}`,
+          ],
         },
       }),
       description: "GitHub Actions can push container images to ECR.",
