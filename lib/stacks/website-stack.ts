@@ -75,7 +75,7 @@ const siteFactoryMap = new Map<string, SiteFactory>([
         ghOidc,
         domainName,
         certificateArn,
-        subdomainName: site.subdomain,
+        subdomainName: `api.${site.subdomain}`,
       });
     },
   ],
