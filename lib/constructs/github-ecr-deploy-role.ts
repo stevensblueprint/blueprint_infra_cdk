@@ -16,8 +16,11 @@ export default class GithubEcrDeployRole extends Construct {
 
   constructor(scope: Construct, id: string, props: GithubEcrDeployRoleProps) {
     super(scope, id);
-    const branchRef = props.branchRef ?? "refs/heads/*";
-    const normalizedBranchRef = branchRef.replace(/^ref:/, "");
+    const repoArnFromRepoName = cdk.Stack.of(this).formatArn({
+      service: "ecr",
+      resource: "repository",
+      resourceName: props.repoName,
+    });
 
     this.role = new iam.Role(this, "GithubEcrDeployerRole", {
       roleName: `github-ecr-deployer-${props.repoName}`,
@@ -51,7 +54,7 @@ export default class GithubEcrDeployRole extends Construct {
           "ecr:PutImage",
           "ecr:UploadLayerPart",
         ],
-        resources: [props.repository.repositoryArn],
+        resources: [props.repository.repositoryArn, repoArnFromRepoName],
       }),
     );
 
