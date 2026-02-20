@@ -74,8 +74,7 @@ export default class HsdsConstruct extends Construct {
         cluster,
         publicLoadBalancer: true,
         assignPublicIp: true,
-        // TODO: Change to 1 when ecr image build and deploy is automated, set to 0 to have deployment paused until first image is pushed to ECR
-        desiredCount: props.initialDesiredCount ?? 0,
+        desiredCount: props.initialDesiredCount,
         cpu: 512,
         memoryLimitMiB: 1024,
         taskImageOptions: {
@@ -95,8 +94,8 @@ export default class HsdsConstruct extends Construct {
         deploymentController: {
           type: ecs.DeploymentControllerType.ECS,
         },
-        circuitBreaker: { rollback: true },
-        healthCheckGracePeriod: cdk.Duration.seconds(200),
+        // circuitBreaker: { rollback: true },
+        // healthCheckGracePeriod: cdk.Duration.seconds(200),
         taskSubnets: {
           subnetType: ec2.SubnetType.PUBLIC,
         },
@@ -120,14 +119,14 @@ export default class HsdsConstruct extends Construct {
       scaleOutCooldown: cdk.Duration.seconds(60),
     });
 
-    this.service.targetGroup.configureHealthCheck({
-      path: "/health",
-      port: "80",
-      healthyThresholdCount: 2,
-      unhealthyThresholdCount: 3,
-      timeout: cdk.Duration.seconds(10),
-      interval: cdk.Duration.seconds(30),
-    });
+    // this.service.targetGroup.configureHealthCheck({
+    //   path: "/health",
+    //   port: "80",
+    //   healthyThresholdCount: 2,
+    //   unhealthyThresholdCount: 3,
+    //   timeout: cdk.Duration.seconds(10),
+    //   interval: cdk.Duration.seconds(30),
+    // });
 
     const githubDeployRole = new GithubEcrDeployRole(
       this,
