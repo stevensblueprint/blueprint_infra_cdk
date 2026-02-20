@@ -16,6 +16,7 @@ export interface HsdsConstructProps {
   readonly githubOwner: string;
   readonly githubRepositoryName: string;
   readonly githubBranchName?: string;
+  readonly initialDesiredCount?: number;
   readonly ghOidc: iam.OpenIdConnectProvider;
   readonly domainName: string;
   readonly certificateArn: string;
@@ -73,7 +74,8 @@ export default class HsdsConstruct extends Construct {
         cluster,
         publicLoadBalancer: true,
         assignPublicIp: true,
-        desiredCount: 1,
+        // TODO: Change to 1 when ecr image build and deploy is automated, set to 0 to have deployment paused until first image is pushed to ECR
+        desiredCount: props.initialDesiredCount ?? 0,
         cpu: 512,
         memoryLimitMiB: 1024,
         taskImageOptions: {
