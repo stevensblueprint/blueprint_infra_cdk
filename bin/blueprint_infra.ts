@@ -23,6 +23,7 @@ const githubStack = new GithubInfraStack(app, "blueprint-github-stack", {
   description: "GitHub OIDC provider stack for Blueprint infrastructure",
   env,
   githubOwner: config.githubOwner,
+  githubRepositoryName: "blueprint_chat_cdk",
 });
 
 new BillingStack(app, "blueprint-billing-stack", {

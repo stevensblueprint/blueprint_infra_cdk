@@ -6,6 +6,7 @@ import PullRequestReminderConstruct from "../constructs/pull-request-reminder-co
 
 export interface GithubInfraStackProps extends cdk.StackProps {
   readonly githubOwner: string;
+  readonly githubRepositoryName: string;
 }
 
 export class GithubInfraStack extends cdk.Stack {
@@ -34,6 +35,25 @@ export class GithubInfraStack extends cdk.Stack {
       },
     );
 
+    const githubActionsRole = new iam.Role(this, "GitHubActionsRole", {
+      roleName: "GitHubActionsDeployRole",
+      assumedBy: new iam.WebIdentityPrincipal(
+        this.ghOidc.openIdConnectProviderArn,
+        {
+          StringEquals: {
+            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          },
+          StringLike: {
+            "token.actions.githubusercontent.com:sub": `repo:${props.githubOwner}/${props.githubRepositoryName}:*`,
+          },
+        },
+      ),
+    });
+
+    githubActionsRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess"),
+    );
+
     new PullRequestReminderConstruct(this, "PullRequestReminderConstruct", {
       githubTokenSecret: this.githubTokenSecret,
     });
@@ -41,6 +61,11 @@ export class GithubInfraStack extends cdk.Stack {
     new cdk.CfnOutput(this, "GithubOidcProviderArn", {
       value: this.ghOidc.openIdConnectProviderArn,
       exportName: `${this.stackName}-GithubOidcProviderArn`,
+    });
+
+    new cdk.CfnOutput(this, "GithubDeployRoleArn", {
+      value: githubActionsRole.roleArn,
+      exportName: `${this.stackName}-GithubDeployRoleArn`,
     });
   }
 }
