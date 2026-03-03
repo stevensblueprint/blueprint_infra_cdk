@@ -253,8 +253,6 @@ export default class PullRequestReminderConstruct extends Construct {
     const mappingsResource = teamResource.addResource("username-mappings");
     mappingsResource.addMethod("PUT", configIntegration, methodOptions);
 
-    // Inject CORS headers on gateway-level errors (401, 403, etc.)
-    // so the browser can read the error response instead of a CORS block.
     const corsHeaders = {
       "Access-Control-Allow-Origin": "'*'",
       "Access-Control-Allow-Headers":

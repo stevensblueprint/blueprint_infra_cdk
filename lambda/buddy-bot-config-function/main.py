@@ -183,20 +183,32 @@ def handler(event: Dict, context: Any) -> Dict:
                 team.repositories.append(repo)
                 _write_config(config)
                 setup_pr_url: Optional[str] = None
-                setup_pr_error: Optional[str] = None
+                webhook_id: Optional[int] = None
+                github_errors: Dict[str, str] = {}
                 try:
                     client = _get_github_client()
-                    setup_pr_url = client.create_setup_pr(repo_name, team.to_dict())
-                    logger.info(f"Opened setup PR for {repo_name}: {setup_pr_url}")
+                    try:
+                        setup_pr_url = client.create_setup_pr(repo_name, team.to_dict())
+                        logger.info(f"Opened setup PR for {repo_name}: {setup_pr_url}")
+                    except Exception as e:
+                        logger.warning(f"create_setup_pr failed for {repo_name}: {e}")
+                        github_errors["setup_pr"] = str(e)
+                    try:
+                        webhook_id = client.create_webhook(repo_name, repo.github_secret)
+                        logger.info(f"Created webhook {webhook_id} for {repo_name}")
+                    except Exception as e:
+                        logger.warning(f"create_webhook failed for {repo_name}: {e}")
+                        github_errors["webhook"] = str(e)
                 except Exception as e:
-                    logger.warning(f"create_setup_pr failed for {repo_name}: {e}")
-                    setup_pr_error = str(e)
+                    logger.warning(f"GitHub client init failed: {e}")
+                    github_errors["client"] = str(e)
                 response: Dict[str, Any] = {
                     "repositories": [r.to_dict() for r in team.repositories],
                     "setup_pr_url": setup_pr_url,
+                    "webhook_id": webhook_id,
                 }
-                if setup_pr_error:
-                    response["setup_pr_error"] = setup_pr_error
+                if github_errors:
+                    response["github_errors"] = github_errors
                 return _ok(response, 201)
 
         # --- /config/teams/{teamName}/repositories/{repoName} ---

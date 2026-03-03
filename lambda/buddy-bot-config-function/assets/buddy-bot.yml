@@ -1,23 +1,39 @@
-name: Buddy Bot PR Notification
-
+name: Assign Coding Buddy
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review]
+    pull_request:
+        types: [opened, ready_for_review]
 
 jobs:
-  notify:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send PR event to Buddy Bot
-        env:
-          BUDDY_BOT_URL: __BUDDY_BOT_URL__
-          BUDDY_BOT_SECRET: ${{ secrets.BUDDY_BOT_WEBHOOK_SECRET }}
-          EVENT_JSON: ${{ toJson(github.event) }}
-        run: |
-          printf '%s' "$EVENT_JSON" > /tmp/payload.json
-          SIG=$(openssl dgst -sha256 -hmac "$BUDDY_BOT_SECRET" /tmp/payload.json | awk '{print "sha256=" $2}')
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -H "X-Hub-Signature-256: $SIG" \
-            -d "@/tmp/payload.json" \
-            "$BUDDY_BOT_URL"
+    assign-reviewer:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Assign Buddy
+              uses: actions/github-script@v6
+              with:
+                  script: |
+                      const fs = require('fs');
+
+                      // Read and parse the config file
+                      let buddyMap = {};
+                      try {
+                        const content = fs.readFileSync('.github/buddies.json', 'utf8');
+                        buddyMap = JSON.parse(content);
+                      } catch (err) {
+                        console.log("No buddy config found or invalid JSON.");
+                        return; // Exit if file missing
+                      }
+
+                      const author = context.payload.pull_request.user.login;
+                      const buddy = buddyMap[author];
+
+                      if (buddy) {
+                        console.log(`Assigning ${buddy} as reviewer for ${author}`);
+                        await github.rest.pulls.requestReviewers({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          pull_number: context.payload.pull_request.number,
+                          reviewers: [buddy]
+                        });
+                      }

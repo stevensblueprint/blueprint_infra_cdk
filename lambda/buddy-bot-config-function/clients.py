@@ -4,7 +4,7 @@ import urllib.error
 import urllib.request
 from base64 import b64encode
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 
@@ -12,12 +12,9 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 class GithubClient:
     def __init__(self, token: str, webhook_url: str) -> None:
         self._token = token
+        self._webhook_url = webhook_url
         raw_workflow = (ASSETS_DIR / "buddy-bot.yml").read_text()
         self._workflow_content = raw_workflow.replace("__BUDDY_BOT_URL__", webhook_url)
-
-    # ------------------------------------------------------------------ #
-    # Public API                                                           #
-    # ------------------------------------------------------------------ #
 
     def create_setup_pr(self, full_repo_name: str, team: Dict[str, Any]) -> str:
         """Open a PR adding .github/buddy-bot.json and .github/workflows/buddy-bot.yml."""
@@ -25,10 +22,25 @@ class GithubClient:
         branch = "chore/buddy-bot-setup"
         default_branch, head_sha = self._default_branch(owner, repo)
         self._create_branch(owner, repo, branch, head_sha)
-        self._put_file(owner, repo, ".github/buddy-bot.json", self._buddy_bot_json(team), "chore: add buddy-bot config", branch)
-        self._put_file(owner, repo, ".github/workflows/buddy-bot.yml", self._workflow_content, "chore: add buddy-bot PR notification workflow", branch)
+        self._put_file(
+            owner,
+            repo,
+            ".github/buddies.json",
+            self._buddy_bot_json(team),
+            "chore: add buddy-bot config",
+            branch,
+        )
+        self._put_file(
+            owner,
+            repo,
+            ".github/workflows/assign-buddy.yml",
+            self._workflow_content,
+            "chore: add buddy-bot PR notification workflow",
+            branch,
+        )
         return self._open_pr(
-            owner, repo,
+            owner,
+            repo,
             title="chore: set up Buddy Bot PR notifications",
             head=branch,
             base=default_branch,
@@ -41,10 +53,25 @@ class GithubClient:
         branch = f"chore/buddy-bot-update-{int(time.time())}"
         default_branch, head_sha = self._default_branch(owner, repo)
         self._create_branch(owner, repo, branch, head_sha)
-        self._put_file(owner, repo, ".github/buddy-bot.json", self._buddy_bot_json(team), "chore: update buddy-bot config", branch)
-        self._put_file(owner, repo, ".github/workflows/buddy-bot.yml", self._workflow_content, "chore: update buddy-bot PR notification workflow", branch)
+        self._put_file(
+            owner,
+            repo,
+            ".github/buddies.json",
+            self._buddy_bot_json(team),
+            "chore: update buddy-bot config",
+            branch,
+        )
+        self._put_file(
+            owner,
+            repo,
+            ".github/workflows/assign-buddy.yml",
+            self._workflow_content,
+            "chore: update buddy-bot PR notification workflow",
+            branch,
+        )
         return self._open_pr(
-            owner, repo,
+            owner,
+            repo,
             title="chore: update Buddy Bot setup files",
             head=branch,
             base=default_branch,
@@ -57,21 +84,42 @@ class GithubClient:
         branch = "chore/buddy-bot-remove"
         default_branch, head_sha = self._default_branch(owner, repo)
         self._create_branch(owner, repo, branch, head_sha)
-        for path in [".github/buddy-bot.json", ".github/workflows/buddy-bot.yml"]:
+        for path in [".github/buddies.json", ".github/workflows/assign-buddy.yml"]:
             existing = self._get_file(owner, repo, path, branch)
             if existing:
-                self._delete_file(owner, repo, path, f"chore: remove {path}", branch, existing["sha"])
+                self._delete_file(
+                    owner, repo, path, f"chore: remove {path}", branch, existing["sha"]
+                )
         return self._open_pr(
-            owner, repo,
+            owner,
+            repo,
             title="chore: remove Buddy Bot setup",
             head=branch,
             base=default_branch,
             body=f"Removes Buddy Bot PR notifications for team `{team_name}`. This repository will no longer send events to the buddy bot.",
         )
 
-    # ------------------------------------------------------------------ #
-    # Private helpers                                                      #
-    # ------------------------------------------------------------------ #
+    def create_webhook(self, full_repo_name: str, secret: str) -> int:
+        """Register a pull_request webhook on the repo pointing to the Buddy Bot Function URL.
+
+        Returns the created webhook ID.
+        """
+        owner, repo = self._parse(full_repo_name)
+        result = self._api(
+            "POST",
+            f"/repos/{owner}/{repo}/hooks",
+            {
+                "name": "web",
+                "active": True,
+                "events": ["pull_request"],
+                "config": {
+                    "url": self._webhook_url,
+                    "content_type": "json",
+                    "secret": secret,
+                },
+            },
+        )
+        return result["id"]
 
     @staticmethod
     def _parse(full_repo_name: str) -> Tuple[str, str]:
@@ -96,7 +144,9 @@ class GithubClient:
                 return json.loads(resp.read())
         except urllib.error.HTTPError as e:
             error_body = json.loads(e.read())
-            raise RuntimeError(f"GitHub API {e.code}: {error_body.get('message', str(e))}")
+            raise RuntimeError(
+                f"GitHub API {e.code}: {error_body.get('message', str(e))}"
+            )
 
     def _default_branch(self, owner: str, repo: str) -> Tuple[str, str]:
         """Return (branch_name, head_sha) for the default branch."""
@@ -106,10 +156,14 @@ class GithubClient:
         return branch, ref_data["object"]["sha"]
 
     def _create_branch(self, owner: str, repo: str, branch: str, sha: str) -> None:
-        self._api("POST", f"/repos/{owner}/{repo}/git/refs", {
-            "ref": f"refs/heads/{branch}",
-            "sha": sha,
-        })
+        self._api(
+            "POST",
+            f"/repos/{owner}/{repo}/git/refs",
+            {
+                "ref": f"refs/heads/{branch}",
+                "sha": sha,
+            },
+        )
 
     def _get_file(self, owner: str, repo: str, path: str, ref: str) -> Optional[Dict]:
         try:
@@ -117,7 +171,9 @@ class GithubClient:
         except RuntimeError:
             return None
 
-    def _put_file(self, owner: str, repo: str, path: str, content: str, message: str, branch: str) -> None:
+    def _put_file(
+        self, owner: str, repo: str, path: str, content: str, message: str, branch: str
+    ) -> None:
         """Create or update a file, automatically resolving the existing SHA if needed."""
         payload: Dict[str, Any] = {
             "message": message,
@@ -129,30 +185,39 @@ class GithubClient:
             payload["sha"] = existing["sha"]
         self._api("PUT", f"/repos/{owner}/{repo}/contents/{path}", payload)
 
-    def _delete_file(self, owner: str, repo: str, path: str, message: str, branch: str, sha: str) -> None:
-        self._api("DELETE", f"/repos/{owner}/{repo}/contents/{path}", {
-            "message": message,
-            "sha": sha,
-            "branch": branch,
-        })
+    def _delete_file(
+        self, owner: str, repo: str, path: str, message: str, branch: str, sha: str
+    ) -> None:
+        self._api(
+            "DELETE",
+            f"/repos/{owner}/{repo}/contents/{path}",
+            {
+                "message": message,
+                "sha": sha,
+                "branch": branch,
+            },
+        )
 
-    def _open_pr(self, owner: str, repo: str, title: str, head: str, base: str, body: str) -> str:
-        result = self._api("POST", f"/repos/{owner}/{repo}/pulls", {
-            "title": title,
-            "head": head,
-            "base": base,
-            "body": body,
-        })
+    def _open_pr(
+        self, owner: str, repo: str, title: str, head: str, base: str, body: str
+    ) -> str:
+        result = self._api(
+            "POST",
+            f"/repos/{owner}/{repo}/pulls",
+            {
+                "title": title,
+                "head": head,
+                "base": base,
+                "body": body,
+            },
+        )
         return result["html_url"]
 
     @staticmethod
     def _buddy_bot_json(team: Dict[str, Any]) -> str:
-        return json.dumps({
-            "team": team["name"],
-            "discord_webhook_url": team.get("discord_webhook_url", ""),
-            "team_leads": team.get("team_leads", []),
-            "enabled": True,
-        }, indent=2) + "\n"
+        # The workflow reads this file as buddyMap[author] → reviewer, so the
+        # content must be the raw buddies dict: {"alice": "bob", ...}
+        return json.dumps(team.get("buddies", {}), indent=2) + "\n"
 
     @staticmethod
     def _setup_pr_body(team: Dict[str, Any]) -> str:
