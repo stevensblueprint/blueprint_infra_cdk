@@ -250,6 +250,22 @@ export default class PullRequestReminderConstruct extends Construct {
     const mappingsResource = teamResource.addResource("username-mappings");
     mappingsResource.addMethod("PUT", configIntegration, methodOptions);
 
+    // Inject CORS headers on gateway-level errors (401, 403, etc.)
+    // so the browser can read the error response instead of a CORS block.
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "'*'",
+      "Access-Control-Allow-Headers":
+        "'Authorization,Content-Type,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+    };
+    configApi.addGatewayResponse("Default4xx", {
+      type: apigw.ResponseType.DEFAULT_4XX,
+      responseHeaders: corsHeaders,
+    });
+    configApi.addGatewayResponse("Default5xx", {
+      type: apigw.ResponseType.DEFAULT_5XX,
+      responseHeaders: corsHeaders,
+    });
+
     new cdk.CfnOutput(this, "BuddyBotConfigApiUrl", {
       value: configApi.url,
       description: "URL for the Buddy Bot Config REST API",

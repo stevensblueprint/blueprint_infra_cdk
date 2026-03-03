@@ -14,10 +14,17 @@ def _write_config(config):
     sm.put_secret_value(SecretId=SECRET_ARN, SecretString=json.dumps(config))
 
 
+CORS_HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Authorization,Content-Type,X-Amz-Date,X-Api-Key,X-Amz-Security-Token",
+}
+
+
 def _ok(body, status=200):
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": CORS_HEADERS,
         "body": json.dumps(body),
     }
 
@@ -25,7 +32,7 @@ def _ok(body, status=200):
 def _err(message, status=400):
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": CORS_HEADERS,
         "body": json.dumps({"error": message}),
     }
 
