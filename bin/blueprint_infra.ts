@@ -24,7 +24,9 @@ const githubStack = new GithubInfraStack(app, "blueprint-github-stack", {
   env,
   githubOwner: config.githubOwner,
   githubRepositoryName: "blueprint_chat_cdk",
+  userPool: authStack.authPool.userPool,
 });
+githubStack.addDependency(authStack);
 
 new BillingStack(app, "blueprint-billing-stack", {
   description: "Billing report stack for Blueprint infrastructure",

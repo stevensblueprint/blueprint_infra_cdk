@@ -1,12 +1,14 @@
 import * as cdk from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
 import PullRequestReminderConstruct from "../constructs/pull-request-reminder-construct";
 
 export interface GithubInfraStackProps extends cdk.StackProps {
   readonly githubOwner: string;
   readonly githubRepositoryName: string;
+  readonly userPool: cognito.IUserPool;
 }
 
 export class GithubInfraStack extends cdk.Stack {
@@ -56,6 +58,7 @@ export class GithubInfraStack extends cdk.Stack {
 
     new PullRequestReminderConstruct(this, "PullRequestReminderConstruct", {
       githubTokenSecret: this.githubTokenSecret,
+      userPool: props.userPool,
     });
 
     new cdk.CfnOutput(this, "GithubOidcProviderArn", {
