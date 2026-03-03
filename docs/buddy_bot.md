@@ -50,20 +50,21 @@ The `buddy-bot/team-config` secret stores a JSON object with the following schem
 ```json
 {
   "settings": {
-    "reminder_threshold_hours": 24
+    "reminder_threshold_days": 1
   },
   "teams": [
     {
       "name": "team-alpha",
       "discord_webhook_url": "https://discord.com/api/webhooks/...",
       "repositories": [
-        "org/repo-one",
-        "org/repo-two"
+        { "name": "org/repo-one", "github_secret": "ghp_token_for_repo_one" },
+        { "name": "org/repo-two", "github_secret": "ghp_token_for_repo_two" }
       ],
-      "buddies": [
-        ["github-user-a", "github-user-b"],
-        ["github-user-c", "github-user-d"]
-      ],
+      "team_leads": ["github-user-a"],
+      "buddies": {
+        "github-user-a": "github-user-b",
+        "github-user-c": "github-user-d"
+      },
       "username_mappings": {
         "github-user-a": "discord-user-a",
         "github-user-b": "discord-user-b"
@@ -77,11 +78,12 @@ The `buddy-bot/team-config` secret stores a JSON object with the following schem
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `settings.reminder_threshold_hours` | number | Hours after PR creation before sending a reminder |
+| `settings.reminder_threshold_days` | number | Days after PR creation before sending a reminder |
 | `teams[].name` | string | Unique team identifier |
 | `teams[].discord_webhook_url` | string | Discord webhook URL for this team's notifications |
-| `teams[].repositories` | string[] | GitHub repos in `org/repo` format to monitor |
-| `teams[].buddies` | string[][] | Pairs of GitHub usernames who are each other's reviewers |
+| `teams[].repositories` | object[] | Repos to monitor; each has `name` (`org/repo`) and `github_secret` (PAT with `repo:read`) |
+| `teams[].team_leads` | string[] | GitHub usernames of team leads |
+| `teams[].buddies` | object | Map of GitHub username → their assigned reviewer's GitHub username |
 | `teams[].username_mappings` | object | Map of GitHub username → Discord username for mentions |
 
 ## API Endpoints
@@ -191,7 +193,12 @@ Lists all repositories for a team.
 
 **Response:**
 ```json
-{ "repositories": ["org/repo-one", "org/repo-two"] }
+{
+  "repositories": [
+    { "name": "org/repo-one", "github_secret": "ghp_..." },
+    { "name": "org/repo-two", "github_secret": "ghp_..." }
+  ]
+}
 ```
 
 #### `POST /config/teams/{teamName}/repositories`
@@ -199,12 +206,17 @@ Adds a repository to a team.
 
 **Request:**
 ```json
-{ "name": "org/new-repo" }
+{ "name": "org/new-repo", "github_secret": "ghp_..." }
 ```
 
 **Response:** `201 Created`
 ```json
-{ "repositories": ["org/repo-one", "org/new-repo"] }
+{
+  "repositories": [
+    { "name": "org/repo-one", "github_secret": "ghp_..." },
+    { "name": "org/new-repo", "github_secret": "ghp_..." }
+  ]
+}
 ```
 
 #### `DELETE /config/teams/{teamName}/repositories/{repoName}`
@@ -220,15 +232,15 @@ Removes a repository from a team. The `repoName` path parameter should be URL-en
 ### Buddies
 
 #### `PUT /config/teams/{teamName}/buddies`
-Replaces all buddy pairs for a team.
+Replaces all buddy assignments for a team. Each key is assigned to review the value's PRs, and vice versa.
 
 **Request:**
 ```json
 {
-  "buddies": [
-    ["github-user-a", "github-user-b"],
-    ["github-user-c", "github-user-d"]
-  ]
+  "buddies": {
+    "github-user-a": "github-user-b",
+    "github-user-c": "github-user-d"
+  }
 }
 ```
 
@@ -296,8 +308,9 @@ curl -X POST "$API_URL/config/teams" \
   -d '{
     "name": "my-team",
     "discord_webhook_url": "https://discord.com/api/webhooks/...",
-    "repositories": ["my-org/my-repo"],
-    "buddies": [["alice", "bob"]],
+    "repositories": [{"name": "my-org/my-repo", "github_secret": "ghp_..."}],
+    "team_leads": ["alice"],
+    "buddies": {"alice": "bob", "charlie": "dave"},
     "username_mappings": {"alice": "alice_discord", "bob": "bob_discord"}
   }'
 ```
