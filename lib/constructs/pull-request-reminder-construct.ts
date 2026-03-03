@@ -171,11 +171,14 @@ export default class PullRequestReminderConstruct extends Construct {
       description: "REST API handler for managing Buddy Bot team configuration",
       environment: {
         TEAM_CONFIG_SECRET_ARN: teamConfigSecret.secretArn,
+        GITHUB_TOKEN_SECRET_ARN: props.githubTokenSecret.secretArn,
+        BUDDY_BOT_WEBHOOK_URL: fnUrl.url,
       },
     });
 
     teamConfigSecret.grantRead(configHandler);
     teamConfigSecret.grantWrite(configHandler);
+    props.githubTokenSecret.grantRead(configHandler);
 
     const configApi = new apigw.RestApi(this, "BuddyBotConfigApi", {
       restApiName: "BuddyBotConfigApi",
