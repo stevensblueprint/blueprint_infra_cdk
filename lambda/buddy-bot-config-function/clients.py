@@ -144,8 +144,10 @@ class GithubClient:
 
     @staticmethod
     def _parse(full_repo_name: str) -> Tuple[str, str]:
-        owner, repo = full_repo_name.split("/", 1)
-        return owner, repo
+        if "/" in full_repo_name:
+            owner, repo = full_repo_name.split("/", 1)
+            return owner, repo
+        return "stevensblueprint", full_repo_name
 
     def _api(self, method: str, path: str, data: Optional[Dict] = None) -> Dict:
         logger.info(f"GitHub API: {method} {path}")
