@@ -2,7 +2,7 @@ import boto3
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 from clients import GithubClient
 from models import BuddyBotConfig, Repository, Settings, TeamConfig
@@ -17,17 +17,23 @@ BUDDY_BOT_WEBHOOK_URL = os.environ["BUDDY_BOT_WEBHOOK_URL"]
 
 
 def _get_github_client() -> GithubClient:
+    logger.info("Fetching GitHub token from SecretsManager")
     token = sm.get_secret_value(SecretId=GITHUB_TOKEN_SECRET_ARN)["SecretString"]
     return GithubClient(token, BUDDY_BOT_WEBHOOK_URL)
 
 
 def _read_config() -> BuddyBotConfig:
+    logger.info("Reading BuddyBotConfig from SecretsManager")
     raw = sm.get_secret_value(SecretId=SECRET_ARN)["SecretString"]
-    return BuddyBotConfig.from_dict(json.loads(raw))
+    config = BuddyBotConfig.from_dict(json.loads(raw))
+    logger.info(f"Config loaded: {len(config.teams)} team(s)")
+    return config
 
 
 def _write_config(config: BuddyBotConfig) -> None:
+    logger.info(f"Writing BuddyBotConfig to SecretsManager: {len(config.teams)} team(s)")
     sm.put_secret_value(SecretId=SECRET_ARN, SecretString=json.dumps(config.to_dict()))
+    logger.info("Config written successfully")
 
 
 CORS_HEADERS = {
@@ -76,19 +82,24 @@ def handler(event: Dict, context: Any) -> Dict:
     params: Dict = event.get("pathParameters") or {}
     raw_body: str = event.get("body") or "{}"
 
+    logger.info(f"Request: {method} {path} params={params}")
+
     try:
         body: Dict = json.loads(raw_body)
     except json.JSONDecodeError:
+        logger.warning(f"Invalid JSON body for {method} {path}")
         return _err("Invalid JSON body")
 
     try:
         # --- /config ---
         if path == "/config":
             if method == "GET":
+                logger.info("GET /config -> returning full config")
                 return _ok(_read_config().to_dict())
             if method == "PUT":
                 if not isinstance(body, dict) or "teams" not in body:
                     return _err("Body must be an object with a 'teams' key")
+                logger.info(f"PUT /config -> replacing config with {len(body.get('teams', []))} team(s)")
                 config = BuddyBotConfig.from_dict(body)
                 _write_config(config)
                 return _ok(config.to_dict())
@@ -97,8 +108,10 @@ def handler(event: Dict, context: Any) -> Dict:
         if path == "/config/settings":
             config = _read_config()
             if method == "GET":
+                logger.info("GET /config/settings -> returning settings")
                 return _ok({"settings": (config.settings or Settings()).to_dict()})
             if method == "PUT":
+                logger.info(f"PUT /config/settings -> updating settings: {body}")
                 config.settings = Settings.from_dict(body)
                 _write_config(config)
                 return _ok({"settings": config.settings.to_dict()})
@@ -107,16 +120,20 @@ def handler(event: Dict, context: Any) -> Dict:
         if path == "/config/teams":
             config = _read_config()
             if method == "GET":
+                logger.info(f"GET /config/teams -> returning {len(config.teams)} team(s)")
                 return _ok({"teams": [t.to_dict() for t in config.teams]})
             if method == "POST":
                 name: str = body.get("name", "")
                 if not name:
                     return _err("'name' is required")
                 if config.find_team(name):
+                    logger.warning(f"POST /config/teams -> team '{name}' already exists")
                     return _err(f"Team '{name}' already exists", 409)
+                logger.info(f"POST /config/teams -> creating team '{name}'")
                 team = TeamConfig.from_dict(body)
                 config.teams.append(team)
                 _write_config(config)
+                logger.info(f"Team '{name}' created successfully")
                 return _ok(team.to_dict(), 201)
 
         # --- /config/teams/{teamName} ---
@@ -126,29 +143,38 @@ def handler(event: Dict, context: Any) -> Dict:
             team = config.find_team(team_name)
             if method == "GET":
                 if not team:
+                    logger.warning(f"GET /config/teams/{team_name} -> not found")
                     return _err(f"Team '{team_name}' not found", 404)
+                logger.info(f"GET /config/teams/{team_name} -> returning team")
                 return _ok(team.to_dict())
             if method == "PUT":
                 if not team:
+                    logger.warning(f"PUT /config/teams/{team_name} -> not found")
                     return _err(f"Team '{team_name}' not found", 404)
                 old_repo_names: Set[str] = {r.name for r in team.repositories}
                 body["name"] = team_name
                 updated = TeamConfig.from_dict(body)
                 new_repo_names: Set[str] = {r.name for r in updated.repositories}
+                added = new_repo_names - old_repo_names
+                removed = old_repo_names - new_repo_names
+                logger.info(
+                    f"PUT /config/teams/{team_name} -> repos added={added} removed={removed} unchanged={new_repo_names - added}"
+                )
                 config.teams = [updated if t.name == team_name else t for t in config.teams]
                 _write_config(config)
                 github_prs: Dict[str, Any] = {}
                 try:
                     client = _get_github_client()
-                    added = new_repo_names - old_repo_names
-                    removed = old_repo_names - new_repo_names
                     github_prs = _repo_prs(client, updated, added, removed)
                 except Exception as e:
                     logger.warning(f"GitHub client error during team PUT: {e}")
                 return _ok({**updated.to_dict(), "github_prs": github_prs})
             if method == "DELETE":
                 if not team:
+                    logger.warning(f"DELETE /config/teams/{team_name} -> not found")
                     return _err(f"Team '{team_name}' not found", 404)
+                repo_names = [r.name for r in team.repositories]
+                logger.info(f"DELETE /config/teams/{team_name} -> removing team with repos={repo_names}")
                 config.teams = [t for t in config.teams if t.name != team_name]
                 _write_config(config)
                 github_prs = {}
@@ -157,12 +183,14 @@ def handler(event: Dict, context: Any) -> Dict:
                     for repo in team.repositories:
                         try:
                             pr_url = client.delete_setup_files(repo.name, team_name)
+                            logger.info(f"Opened removal PR for {repo.name}: {pr_url}")
                             github_prs[repo.name] = {"action": "deleted", "pr_url": pr_url}
                         except Exception as e:
                             logger.warning(f"delete_setup_files failed for {repo.name}: {e}")
                             github_prs[repo.name] = {"action": "deleted", "error": str(e)}
                 except Exception as e:
                     logger.warning(f"GitHub client error during team DELETE: {e}")
+                logger.info(f"Team '{team_name}' deleted; github_prs={list(github_prs.keys())}")
                 return _ok({"deleted": team_name, "github_prs": github_prs})
 
         # --- /config/teams/{teamName}/repositories ---
@@ -170,15 +198,19 @@ def handler(event: Dict, context: Any) -> Dict:
             config = _read_config()
             team = config.find_team(team_name)
             if not team:
+                logger.warning(f"{method} /config/teams/{team_name}/repositories -> team not found")
                 return _err(f"Team '{team_name}' not found", 404)
             if method == "GET":
+                logger.info(f"GET /config/teams/{team_name}/repositories -> {len(team.repositories)} repo(s)")
                 return _ok({"repositories": [r.to_dict() for r in team.repositories]})
             if method == "POST":
                 repo_name: str = body.get("name", "")
                 if not repo_name:
                     return _err("'name' is required")
                 if any(r.name == repo_name for r in team.repositories):
+                    logger.warning(f"POST repositories -> '{repo_name}' already exists in team '{team_name}'")
                     return _err(f"Repository '{repo_name}' already exists in team", 409)
+                logger.info(f"POST /config/teams/{team_name}/repositories -> adding '{repo_name}'")
                 repo = Repository.from_dict(body)
                 team.repositories.append(repo)
                 _write_config(config)
@@ -217,10 +249,13 @@ def handler(event: Dict, context: Any) -> Dict:
             config = _read_config()
             team = config.find_team(team_name)
             if not team:
+                logger.warning(f"DELETE repositories/{repo_name} -> team '{team_name}' not found")
                 return _err(f"Team '{team_name}' not found", 404)
             if method == "DELETE":
                 if not any(r.name == repo_name for r in team.repositories):
+                    logger.warning(f"DELETE repositories/{repo_name} -> not found in team '{team_name}'")
                     return _err(f"Repository '{repo_name}' not found in team", 404)
+                logger.info(f"DELETE /config/teams/{team_name}/repositories/{repo_name}")
                 team.repositories = [r for r in team.repositories if r.name != repo_name]
                 _write_config(config)
                 removal_pr_url: Optional[str] = None
@@ -242,11 +277,13 @@ def handler(event: Dict, context: Any) -> Dict:
             config = _read_config()
             team = config.find_team(team_name)
             if not team:
+                logger.warning(f"PUT /config/teams/{team_name}/buddies -> team not found")
                 return _err(f"Team '{team_name}' not found", 404)
             if method == "PUT":
                 buddies = body.get("buddies")
                 if not isinstance(buddies, dict):
                     return _err("'buddies' must be an object mapping GitHub usernames")
+                logger.info(f"PUT /config/teams/{team_name}/buddies -> updating {len(buddies)} buddy mapping(s)")
                 team.buddies = buddies
                 _write_config(config)
                 return _ok({"buddies": team.buddies})
@@ -256,16 +293,20 @@ def handler(event: Dict, context: Any) -> Dict:
             config = _read_config()
             team = config.find_team(team_name)
             if not team:
+                logger.warning(f"PUT /config/teams/{team_name}/username-mappings -> team not found")
                 return _err(f"Team '{team_name}' not found", 404)
             if method == "PUT":
                 mappings = body.get("username_mappings")
                 if not isinstance(mappings, dict):
                     return _err("'username_mappings' must be an object mapping GitHub to Discord usernames")
+                logger.info(f"PUT /config/teams/{team_name}/username-mappings -> updating {len(mappings)} mapping(s)")
                 team.username_mappings = mappings
                 _write_config(config)
                 return _ok({"username_mappings": team.username_mappings})
 
+        logger.warning(f"No route matched: {method} {path}")
         return _err("Not found", 404)
 
     except Exception as e:
+        logger.exception(f"Unhandled error for {method} {path}: {e}")
         return _err(str(e), 500)
