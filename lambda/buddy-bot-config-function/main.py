@@ -134,7 +134,14 @@ def handler(event: Dict, context: Any) -> Dict:
                 config.teams.append(team)
                 _write_config(config)
                 logger.info(f"Team '{name}' created successfully")
-                return _ok(team.to_dict(), 201)
+                github_prs: Dict[str, Any] = {}
+                try:
+                    client = _get_github_client()
+                    added_repos: Set[str] = {r.name for r in team.repositories}
+                    github_prs = _repo_prs(client, team, added_repos, set())
+                except Exception as e:
+                    logger.warning(f"GitHub client error during team POST: {e}")
+                return _ok({**team.to_dict(), "github_prs": github_prs}, 201)
 
         # --- /config/teams/{teamName} ---
         team_name: str = params.get("teamName", "")
