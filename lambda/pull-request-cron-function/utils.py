@@ -21,8 +21,7 @@ def get_github_token(secrets_client, secret_arn: str) -> str:
     """Retrieve GitHub token from AWS Secrets Manager"""
     try:
         response = secrets_client.get_secret_value(SecretId=secret_arn)
-        secret = json.loads(response["SecretString"])
-        return secret.get("token", "")
+        return response["SecretString"]
     except Exception as e:
         logger.error(f"Failed to retrieve GitHub token: {e}", exc_info=True)
         raise
