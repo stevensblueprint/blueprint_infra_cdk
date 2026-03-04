@@ -43,10 +43,17 @@ class TeamConfig:
 
     @staticmethod
     def from_dict(data: Dict) -> "TeamConfig":
+        raw_repos = data.get("repositories", [])
+        if not isinstance(raw_repos, list):
+            raise ValueError("'repositories' must be a list")
+        repositories = [
+            Repository.from_dict(r) if isinstance(r, dict) else Repository(name=r, github_secret="")
+            for r in raw_repos
+        ]
         return TeamConfig(
             name=data["name"],
             discord_webhook_url=data.get("discord_webhook_url", ""),
-            repositories=[Repository.from_dict(r) for r in data.get("repositories", [])],
+            repositories=repositories,
             team_leads=data.get("team_leads", []),
             buddies=data.get("buddies", {}),
             username_mappings=data.get("username_mappings", {}),
@@ -71,8 +78,11 @@ class BuddyBotConfig:
     @staticmethod
     def from_dict(data: Dict) -> "BuddyBotConfig":
         settings_data = data.get("settings")
+        raw_teams = data.get("teams", [])
+        if not isinstance(raw_teams, list):
+            raise ValueError("'teams' must be a list")
         return BuddyBotConfig(
-            teams=[TeamConfig.from_dict(t) for t in data.get("teams", [])],
+            teams=[TeamConfig.from_dict(t) for t in raw_teams],
             settings=Settings.from_dict(settings_data) if settings_data is not None else None,
         )
 
