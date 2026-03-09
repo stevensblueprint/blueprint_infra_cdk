@@ -9,6 +9,7 @@ import {
   aws_route53 as route53,
   aws_s3 as s3,
   aws_ses as ses,
+  custom_resources as cr,
 } from "aws-cdk-lib";
 import * as sesActions from "aws-cdk-lib/aws-ses-actions";
 
@@ -109,8 +110,28 @@ export class EmailToDiscordConstruct extends Construct {
     });
 
     // Activate the rule set (only one can be active per region)
-    new ses.CfnActiveReceiptRuleSet(this, "ActiveRuleSet", {
-      ruleSetName: ruleSet.receiptRuleSetName,
+    new cr.AwsCustomResource(this, "ActiveRuleSet", {
+      onCreate: {
+        service: "SES",
+        action: "setActiveReceiptRuleSet",
+        parameters: { RuleSetName: ruleSet.receiptRuleSetName },
+        physicalResourceId: cr.PhysicalResourceId.of("ActiveReceiptRuleSet"),
+      },
+      onUpdate: {
+        service: "SES",
+        action: "setActiveReceiptRuleSet",
+        parameters: { RuleSetName: ruleSet.receiptRuleSetName },
+        physicalResourceId: cr.PhysicalResourceId.of("ActiveReceiptRuleSet"),
+      },
+      onDelete: {
+        service: "SES",
+        action: "setActiveReceiptRuleSet",
+        parameters: {},
+        physicalResourceId: cr.PhysicalResourceId.of("ActiveReceiptRuleSet"),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
+        resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE,
+      }),
     });
   }
 }
