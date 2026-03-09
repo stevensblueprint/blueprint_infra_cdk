@@ -103,6 +103,50 @@ const EnvSchema = z
       .regex(arnRegex, "CERTIFICATE_ARN must be a valid AWS ARN"),
     GITHUB_OWNER: z.string().min(1, "GITHUB_OWNER is required"),
     WEBSITES: WebsitesSchema,
+    EMAIL_DISCORD_MAPPINGS: z
+      .string()
+      .optional()
+      .transform((val, ctx) => {
+        if (!val) return undefined;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(val);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "EMAIL_DISCORD_MAPPINGS must be valid JSON",
+          });
+          return z.NEVER;
+        }
+        if (!Array.isArray(parsed)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'EMAIL_DISCORD_MAPPINGS must be a JSON array e.g. [{"design":"https://discord.com/..."}]',
+          });
+          return z.NEVER;
+        }
+        const merged: Record<string, string> = {};
+        for (const item of parsed) {
+          if (typeof item !== "object" || item === null || Array.isArray(item)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Each entry in EMAIL_DISCORD_MAPPINGS must be an object",
+            });
+            return z.NEVER;
+          }
+          for (const [key, value] of Object.entries(item)) {
+            if (typeof value !== "string") {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `EMAIL_DISCORD_MAPPINGS entry ["${key}"] must be a string URL`,
+              });
+              return z.NEVER;
+            }
+            merged[key] = value;
+          }
+        }
+        return merged;
+      }),
   })
   .superRefine((env, ctx) => {
     const rootIdxs = env.WEBSITES.map((w, i) => {
@@ -129,6 +173,7 @@ const EnvSchema = z
     certificateArn: env.CERTIFICATE_ARN,
     githubOwner: env.GITHUB_OWNER,
     websites: env.WEBSITES,
+    emailDiscordMappings: env.EMAIL_DISCORD_MAPPINGS,
   }));
 
 export const config = EnvSchema.parse(process.env);

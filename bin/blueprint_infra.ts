@@ -4,6 +4,7 @@ import { AuthStack } from "../lib/stacks/auth-stack";
 import { GithubInfraStack } from "../lib/stacks/github-infra-stack";
 import { WebsiteStack } from "../lib/stacks/website-stack";
 import { BillingStack } from "../lib/stacks/billing-stack";
+import { EmailStack } from "../lib/stacks/email-stack";
 import { config } from "./config";
 
 const app = new cdk.App();
@@ -27,6 +28,15 @@ const githubStack = new GithubInfraStack(app, "blueprint-github-stack", {
   userPool: authStack.authPool.userPool,
 });
 githubStack.addDependency(authStack);
+
+if (config.emailDiscordMappings) {
+  new EmailStack(app, "blueprint-email-stack", {
+    description: "Inbound email → Discord stack for Blueprint infrastructure",
+    env,
+    domainName: config.domainName,
+    mappings: config.emailDiscordMappings,
+  });
+}
 
 new BillingStack(app, "blueprint-billing-stack", {
   description: "Billing report stack for Blueprint infrastructure",

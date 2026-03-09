@@ -1,0 +1,110 @@
+import email
+import html
+import json
+import logging
+import os
+import re
+import urllib.request
+
+import boto3
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+EMAIL_DISCORD_MAPPINGS: dict[str, str] = json.loads(os.environ["EMAIL_DISCORD_MAPPINGS"])
+EMAIL_BUCKET = os.environ["EMAIL_BUCKET"]
+
+s3_client = boto3.client("s3")
+
+
+def strip_html(html_content: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", html_content)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def extract_body(msg) -> str:
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.get_content_type() == "text/plain":
+                payload = part.get_payload(decode=True)
+                if payload:
+                    return payload.decode("utf-8", errors="replace")
+        for part in msg.walk():
+            if part.get_content_type() == "text/html":
+                payload = part.get_payload(decode=True)
+                if payload:
+                    return strip_html(payload.decode("utf-8", errors="replace"))
+    else:
+        payload = msg.get_payload(decode=True)
+        if payload:
+            body = payload.decode("utf-8", errors="replace")
+            return strip_html(body) if msg.get_content_type() == "text/html" else body
+    return "(no body)"
+
+
+def resolve_webhook(recipients: list[str]) -> str | None:
+    for recipient in recipients:
+        local = recipient.split("@")[0].lower()
+        if local in EMAIL_DISCORD_MAPPINGS:
+            return EMAIL_DISCORD_MAPPINGS[local]
+    return None
+
+
+def post_to_discord(from_addr: str, subject: str, body: str, webhook_url: str) -> None:
+    MAX_BODY = 3900
+    truncated = body[:MAX_BODY] + "\n*(truncated)*" if len(body) > MAX_BODY else body
+
+    payload = {
+        "embeds": [
+            {
+                "title": subject[:256],
+                "description": f"**From:** {from_addr}\n\n{truncated}",
+                "color": 0x5865F2,
+            }
+        ]
+    }
+
+    req = urllib.request.Request(
+        webhook_url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    urllib.request.urlopen(req)
+    logger.info(f"Sent email to Discord: {subject}")
+
+
+def handler(event, _context):
+    for record in event["Records"]:
+        ses_mail = record["ses"]["mail"]
+        message_id = ses_mail["messageId"]
+        common_headers = ses_mail.get("commonHeaders", {})
+        subject = common_headers.get("subject", "No Subject")
+        from_list = common_headers.get("from", ["Unknown"])
+        from_addr = from_list[0] if from_list else "Unknown"
+        recipients = record["ses"]["receipt"].get("recipients", [])
+
+        webhook_url = resolve_webhook(recipients)
+        if not webhook_url:
+            logger.warning(f"No Discord mapping for recipients {recipients}, skipping")
+            continue
+
+        logger.info(f"Processing email {message_id}: {subject}")
+
+        try:
+            response = s3_client.get_object(Bucket=EMAIL_BUCKET, Key=f"emails/{message_id}")
+            raw_email = response["Body"].read()
+        except Exception as e:
+            logger.error(f"Failed to read email from S3: {e}", exc_info=True)
+            continue
+
+        msg = email.message_from_bytes(raw_email)
+        body = extract_body(msg)
+
+        try:
+            post_to_discord(from_addr, subject, body, webhook_url)
+        except Exception as e:
+            logger.error(f"Failed to post to Discord: {e}", exc_info=True)
+
+    return {"disposition": "CONTINUE"}
