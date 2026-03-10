@@ -6,7 +6,6 @@ import {
   Stack,
   aws_iam as iam,
   aws_lambda as lambda,
-  aws_route53 as route53,
   aws_s3 as s3,
   aws_ses as ses,
   custom_resources as cr,
@@ -23,36 +22,16 @@ export class EmailToDiscordConstruct extends Construct {
   constructor(scope: Construct, id: string, props: EmailToDiscordProps) {
     super(scope, id);
 
-    const region = Stack.of(this).region;
     const account = Stack.of(this).account;
     const recipients = Object.keys(props.mappings).map(
       (local) => `${local}@${props.domainName}`,
     );
 
-    const hostedZone = route53.HostedZone.fromLookup(this, "HostedZone", {
-      domainName: props.domainName,
-    });
-
-    // MX record — directs inbound mail to SES
-    new route53.MxRecord(this, "SesInboundMxRecord", {
-      zone: hostedZone,
-      values: [
-        { priority: 10, hostName: `inbound-smtp.${region}.amazonaws.com` },
-      ],
-    });
-
-    // Domain identity — auto-creates DKIM records in Route53
-    new ses.EmailIdentity(this, "DomainIdentity", {
-      identity: ses.Identity.publicHostedZone(hostedZone),
-    });
-
-    // S3 bucket to hold raw inbound emails
     const emailBucket = new s3.Bucket(this, "InboundEmailBucket", {
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
 
-    // Allow SES to write emails into the bucket
     emailBucket.addToResourcePolicy(
       new iam.PolicyStatement({
         principals: [new iam.ServicePrincipal("ses.amazonaws.com")],
@@ -64,7 +43,6 @@ export class EmailToDiscordConstruct extends Construct {
       }),
     );
 
-    // Lambda that parses the email and posts to the matching Discord channel
     const fn = new lambda.Function(this, "EmailToDiscordFunction", {
       runtime: lambda.Runtime.PYTHON_3_11,
       handler: "main.handler",
@@ -87,12 +65,10 @@ export class EmailToDiscordConstruct extends Construct {
       sourceAccount: account,
     });
 
-    // Receipt rule set
     const ruleSet = new ses.ReceiptRuleSet(this, "InboundRuleSet", {
       receiptRuleSetName: "inbound-invoice-rules",
     });
 
-    // One rule covers all mapped addresses
     ruleSet.addRule("InvoiceEmailRule", {
       recipients,
       actions: [
@@ -109,7 +85,6 @@ export class EmailToDiscordConstruct extends Construct {
       scanEnabled: true,
     });
 
-    // Activate the rule set (only one can be active per region)
     new cr.AwsCustomResource(this, "ActiveRuleSet", {
       onCreate: {
         service: "SES",

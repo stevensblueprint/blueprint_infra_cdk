@@ -68,7 +68,7 @@ def post_to_discord(from_addr: str, subject: str, body: str, webhook_url: str) -
     req = urllib.request.Request(
         webhook_url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"User-Agent": "AWS-Lambda", "Content-Type": "application/json"},
         method="POST",
     )
     urllib.request.urlopen(req)
