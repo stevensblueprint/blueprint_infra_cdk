@@ -12,10 +12,17 @@ import {
 } from "aws-cdk-lib";
 import * as sesActions from "aws-cdk-lib/aws-ses-actions";
 
+export interface EmailMapping {
+  /** Discord webhook URL */
+  readonly webhookUrl: string;
+  /** Only forward emails from these sender domains, e.g. ["example.com", "partner.com"] */
+  readonly allowedSenderDomains: string[];
+}
+
 export interface EmailToDiscordProps {
   readonly domainName: string;
-  /** Maps email local parts to Discord webhook URLs, e.g. { design: "https://..." } */
-  readonly mappings: Record<string, string>;
+  /** Maps email local parts to their config, e.g. { design: { webhookUrl: "https://...", allowedSenderDomains: ["example.com"] } } */
+  readonly mappings: Record<string, EmailMapping>;
 }
 
 export class EmailToDiscordConstruct extends Construct {

@@ -11,7 +11,7 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-EMAIL_DISCORD_MAPPINGS: dict[str, str] = json.loads(os.environ["EMAIL_DISCORD_MAPPINGS"])
+EMAIL_DISCORD_MAPPINGS: dict[str, dict] = json.loads(os.environ["EMAIL_DISCORD_MAPPINGS"])
 EMAIL_BUCKET = os.environ["EMAIL_BUCKET"]
 
 s3_client = boto3.client("s3")
@@ -43,7 +43,7 @@ def extract_body(msg) -> str:
     return "(no body)"
 
 
-def resolve_webhook(recipients: list[str]) -> str | None:
+def resolve_mapping(recipients: list[str]) -> dict | None:
     for recipient in recipients:
         local = recipient.split("@")[0].lower()
         if local in EMAIL_DISCORD_MAPPINGS:
@@ -85,10 +85,18 @@ def handler(event, _context):
         from_addr = from_list[0] if from_list else "Unknown"
         recipients = record["ses"]["receipt"].get("recipients", [])
 
-        webhook_url = resolve_webhook(recipients)
-        if not webhook_url:
+        mapping = resolve_mapping(recipients)
+        if not mapping:
             logger.warning(f"No Discord mapping for recipients {recipients}, skipping")
             continue
+
+        sender_domain = from_addr.split("@")[-1].rstrip(">").lower()
+        allowed = [d.lower() for d in mapping.get("allowedSenderDomains", [])]
+        if allowed and sender_domain not in allowed:
+            logger.warning(f"Rejected email from {from_addr}: domain not in allowed list")
+            continue
+
+        webhook_url = mapping["webhookUrl"]
 
         logger.info(f"Processing email {message_id}: {subject}")
 
