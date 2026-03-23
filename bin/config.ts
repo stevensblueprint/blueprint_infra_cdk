@@ -121,11 +121,12 @@ const EnvSchema = z
         if (!Array.isArray(parsed)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'EMAIL_DISCORD_MAPPINGS must be a JSON array e.g. [{"design":"https://discord.com/..."}]',
+            message:
+              'EMAIL_DISCORD_MAPPINGS must be a JSON array e.g. [{"design":{"webhookUrl":"https://discord.com/...","allowedSenderDomains":["example.com"]}}]',
           });
           return z.NEVER;
         }
-        const merged: Record<string, string> = {};
+        const merged: Record<string, { webhookUrl: string; allowedSenderDomains: string[] }> = {};
         for (const item of parsed) {
           if (typeof item !== "object" || item === null || Array.isArray(item)) {
             ctx.addIssue({
@@ -135,14 +136,33 @@ const EnvSchema = z
             return z.NEVER;
           }
           for (const [key, value] of Object.entries(item)) {
-            if (typeof value !== "string") {
+            if (
+              typeof value !== "object" ||
+              value === null ||
+              typeof (value as Record<string, unknown>).webhookUrl !== "string"
+            ) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `EMAIL_DISCORD_MAPPINGS entry ["${key}"] must be a string URL`,
+                message: `EMAIL_DISCORD_MAPPINGS entry ["${key}"] must be an object with a "webhookUrl" string`,
               });
               return z.NEVER;
             }
-            merged[key] = value;
+            const { webhookUrl, allowedSenderDomains } = value as Record<string, unknown>;
+            if (
+              allowedSenderDomains !== undefined &&
+              (!Array.isArray(allowedSenderDomains) ||
+                (allowedSenderDomains as unknown[]).some((d) => typeof d !== "string"))
+            ) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `EMAIL_DISCORD_MAPPINGS entry ["${key}"].allowedSenderDomains must be an array of strings`,
+              });
+              return z.NEVER;
+            }
+            merged[key] = {
+              webhookUrl: webhookUrl as string,
+              allowedSenderDomains: (allowedSenderDomains as string[]) ?? [],
+            };
           }
         }
         return merged;

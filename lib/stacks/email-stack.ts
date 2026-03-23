@@ -1,11 +1,11 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { EmailToDiscordConstruct } from "../constructs/email-to-discord-construct";
+import { EmailMapping, EmailToDiscordConstruct } from "../constructs/email-to-discord-construct";
 
 export interface EmailStackProps extends cdk.StackProps {
   readonly domainName: string;
-  /** Maps email local parts to Discord webhook URLs, e.g. { design: "https://..." } */
-  readonly mappings: Record<string, string>;
+  /** Maps email local parts to their config, e.g. { design: { webhookUrl: "https://...", allowedSenderDomains: ["example.com"] } } */
+  readonly mappings: Record<string, EmailMapping>;
 }
 
 export class EmailStack extends cdk.Stack {
