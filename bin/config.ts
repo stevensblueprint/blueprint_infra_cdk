@@ -126,7 +126,7 @@ const EnvSchema = z
           });
           return z.NEVER;
         }
-        const merged: Record<string, { webhookUrl: string; allowedSenderDomains: string[] }> = {};
+        const merged: Record<string, { webhookUrl: string; allowedSenderDomains: string[]; forwardEmails?: string[] }> = {};
         for (const item of parsed) {
           if (typeof item !== "object" || item === null || Array.isArray(item)) {
             ctx.addIssue({
@@ -147,7 +147,7 @@ const EnvSchema = z
               });
               return z.NEVER;
             }
-            const { webhookUrl, allowedSenderDomains } = value as Record<string, unknown>;
+            const { webhookUrl, allowedSenderDomains, forwardEmails } = value as Record<string, unknown>;
             if (
               allowedSenderDomains !== undefined &&
               (!Array.isArray(allowedSenderDomains) ||
@@ -159,9 +159,21 @@ const EnvSchema = z
               });
               return z.NEVER;
             }
+            if (
+              forwardEmails !== undefined &&
+              (!Array.isArray(forwardEmails) ||
+                (forwardEmails as unknown[]).some((d) => typeof d !== "string"))
+            ) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `EMAIL_DISCORD_MAPPINGS entry ["${key}"].forwardEmails must be an array of strings`,
+              });
+              return z.NEVER;
+            }
             merged[key] = {
               webhookUrl: webhookUrl as string,
               allowedSenderDomains: (allowedSenderDomains as string[]) ?? [],
+              forwardEmails: forwardEmails as string[] | undefined,
             };
           }
         }

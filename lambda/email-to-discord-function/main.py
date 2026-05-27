@@ -13,8 +13,10 @@ logger.setLevel(logging.INFO)
 
 EMAIL_DISCORD_MAPPINGS: dict[str, dict] = json.loads(os.environ["EMAIL_DISCORD_MAPPINGS"])
 EMAIL_BUCKET = os.environ["EMAIL_BUCKET"]
+FORWARD_SENDER = os.environ.get("FORWARD_SENDER", "no-reply@example.com")
 
 s3_client = boto3.client("s3")
+ses_client = boto3.client("ses")
 
 
 def strip_html(html_content: str) -> str:
@@ -75,6 +77,27 @@ def post_to_discord(from_addr: str, subject: str, body: str, webhook_url: str) -
     logger.info(f"Sent email to Discord: {subject}")
 
 
+def forward_email(from_addr: str, subject: str, body: str, forward_emails: list[str]) -> None:
+    fwd_body = f"---------- Forwarded message ----------\nFrom: {from_addr}\nSubject: {subject}\n\n{body}"
+    
+    for recipient in forward_emails:
+        try:
+            ses_client.send_email(
+                Source=FORWARD_SENDER,
+                Destination={"ToAddresses": [recipient]},
+                Message={
+                    "Subject": {"Data": f"Fwd: {subject}"},
+                    "Body": {
+                        "Text": {"Data": fwd_body}
+                    },
+                },
+                ReplyToAddresses=[from_addr]
+            )
+            logger.info(f"Forwarded email to {recipient}")
+        except Exception as e:
+            logger.error(f"Failed to forward email to {recipient}: {e}", exc_info=True)
+
+
 def handler(event, _context):
     for record in event["Records"]:
         ses_mail = record["ses"]["mail"]
@@ -97,6 +120,7 @@ def handler(event, _context):
             continue
 
         webhook_url = mapping["webhookUrl"]
+        forward_emails = mapping.get("forwardEmails", [])
 
         logger.info(f"Processing email {message_id}: {subject}")
 
@@ -110,9 +134,14 @@ def handler(event, _context):
         msg = email.message_from_bytes(raw_email)
         body = extract_body(msg)
 
+        # Post to Discord
         try:
             post_to_discord(from_addr, subject, body, webhook_url)
         except Exception as e:
             logger.error(f"Failed to post to Discord: {e}", exc_info=True)
+
+        # Forward to registered emails
+        if forward_emails:
+            forward_email(from_addr, subject, body, forward_emails)
 
     return {"disposition": "CONTINUE"}

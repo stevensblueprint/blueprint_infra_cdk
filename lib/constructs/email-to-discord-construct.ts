@@ -17,6 +17,8 @@ export interface EmailMapping {
   readonly webhookUrl: string;
   /** Only forward emails from these sender domains, e.g. ["example.com", "partner.com"] */
   readonly allowedSenderDomains: string[];
+  /** Optional: Forward the email to these registered email addresses */
+  readonly forwardEmails?: string[];
 }
 
 export interface EmailToDiscordProps {
@@ -62,10 +64,17 @@ export class EmailToDiscordConstruct extends Construct {
       environment: {
         EMAIL_DISCORD_MAPPINGS: JSON.stringify(props.mappings),
         EMAIL_BUCKET: emailBucket.bucketName,
+        FORWARD_SENDER: `no-reply@${props.domainName}`,
       },
     });
 
     emailBucket.grantRead(fn);
+    fn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ses:SendRawEmail", "ses:SendEmail"],
+        resources: ["*"],
+      }),
+    );
 
     fn.addPermission("SesInvoke", {
       principal: new iam.ServicePrincipal("ses.amazonaws.com"),

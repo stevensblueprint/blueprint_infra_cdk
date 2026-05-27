@@ -9,6 +9,7 @@ It provisions a comprehensive serverless environment including centralized authe
 - **[Architecture Overview](./docs/architecture.md)**: High-level design and stack breakdown.
 - **[Configuration Guide](./docs/configuration.md)**: How to configure the environment variables (`.env`).
 - **[Deployment Guide](./docs/deployment.md)**: Step-by-step instructions for deploying to AWS.
+- **[Email Forwarding & Discord Integration](./docs/email_forwarding.md)**: How to configure inbound email rules and forwarding.
 - **[Password Manager Architecture](./docs/password_manager.md)**: Specifics of the Password Manager application.
 
 ## Quick Start
